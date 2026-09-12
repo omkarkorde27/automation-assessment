@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="pane">
+  {# The flow-level checkpoint for member.open_subaccount: this heading plus the
+     /subaccount/done URL. Asserting both is what proves we reached the state
+     rather than assuming the click worked. #}
+  <div class="paneHdr">Sub-Account Opened</div>
+  <div class="paneBody">
+    <div class="ok" role="status">Sub-account opened successfully.</div>
+    <table class="form">
+      <tr><td nowrap><b>New Account Number</b></td><td>{{ account_number }}</td></tr>
+      <tr><td nowrap><b>{{ tenant.member_id_label }}</b></td><td>{{ m.member_id }}</td></tr>
+      <tr><td nowrap><b>Product Code</b></td><td>{{ form.product_code }}</td></tr>
+      <tr><td nowrap><b>Opening Balance</b></td><td>{{ opening_balance }}</td></tr>
+      <tr><td nowrap><b>Opened</b></td><td>{{ opened_at }}</td></tr>
+    </table>
+    <p style="margin-top:12px">
+      <a href="/t/{{ tenant.slug }}/members/{{ m.member_id }}">Return to Member Detail</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

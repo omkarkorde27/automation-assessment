@@ -1,0 +1,35 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="pane">
+  <div class="paneHdr">{{ tenant.member_search_heading }}</div>
+  <div class="paneBody">
+    {# DELIBERATELY HOSTILE, and the most important markup in the fixture.
+
+       The label sits in a sibling <td> with no `for`, and the input carries no
+       aria-label, no title, and no placeholder. Its accessible name is
+       therefore EMPTY -- a role+name locator cannot find it, and the generated
+       id changes every render, so an id/CSS locator resolves once and rots.
+
+       The only durable way in is the anchor-relative strategy: "the textbox in
+       the same table row as the cell reading '<member id label>'". That is
+       exactly the case this project claims to handle, so the fixture has to
+       contain it rather than let us assert it. #}
+    <form method="post" action="/t/{{ tenant.slug }}/members/search">
+      <table class="form">
+        <tr>
+          <td nowrap>{{ tenant.member_id_label }}</td>
+          <td><input type="text" id="{{ q_id }}" name="{{ q_id }}" size="20" maxlength="10"></td>
+          <td><input type="submit" value="Search"></td>
+        </tr>
+        <tr>
+          <td nowrap>Last Name</td>
+          <td colspan="2"><input type="text" id="{{ ln_id }}" name="last_name" size="20"></td>
+        </tr>
+      </table>
+    </form>
+    <p style="color:#666;font-size:11px">
+      Enter a {{ tenant.member_id_label | lower }} for an exact match, or a last name to list matches.
+    </p>
+  </div>
+</div>
+{% endblock %}

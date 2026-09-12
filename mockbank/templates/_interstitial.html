@@ -1,0 +1,11 @@
+{# A real obstruction: the overlay covers the page and intercepts pointer events,
+   so automation that ignores it will fail its next click rather than quietly
+   succeeding. Dismissal is client-side, exactly like the nuisance modals these
+   apps ship. #}
+<div class="modalWrap" id="{{ cid('ovl') }}">
+  <div class="modal" role="dialog" aria-label="{{ tenant.interstitial_title }}">
+    <h3>{{ tenant.interstitial_title }}</h3>
+    <p>{{ tenant.interstitial_body }}</p>
+    <button type="button" onclick="this.closest('.modalWrap').remove()">Close</button>
+  </div>
+</div>

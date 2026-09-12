@@ -1,0 +1,33 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="pane">
+  <div class="paneHdr">Sign In</div>
+  <div class="paneBody">
+    {% if expired %}
+      <div class="notice" role="alert">Your session has expired. Please sign in again.</div>
+    {% endif %}
+    {% if error %}
+      <div class="alert" role="alert">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/t/{{ tenant.slug }}/login">
+      <input type="hidden" name="next" value="{{ next_path }}">
+      <table class="form">
+        {# Login fields use proper label/for. Credentials never come from the
+           model: the profile's login recipe supplies them from env refs. #}
+        <tr>
+          <td><label for="{{ u_id }}">User ID</label></td>
+          <td><input type="text" id="{{ u_id }}" name="username" size="24"></td>
+        </tr>
+        <tr>
+          <td><label for="{{ p_id }}">Password</label></td>
+          <td><input type="password" id="{{ p_id }}" name="password" size="24"></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><input type="submit" value="Sign In"></td>
+        </tr>
+      </table>
+    </form>
+  </div>
+</div>
+{% endblock %}

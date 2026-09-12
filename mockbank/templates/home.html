@@ -1,0 +1,18 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="pane">
+  <div class="paneHdr">Dashboard</div>
+  <div class="paneBody">
+    <p>Signed in as <b>{{ user }}</b> &mdash; {{ tenant.display_name }}.</p>
+    <table class="grid">
+      <tr><th>Queue</th><th>Items</th></tr>
+      <tr><td>Pending sub-account requests</td><td>3</td></tr>
+      <tr><td>Address change reviews</td><td>7</td></tr>
+      <tr><td>Dormant account notices</td><td>12</td></tr>
+    </table>
+    <p style="margin-top:12px">
+      <a href="/t/{{ tenant.slug }}/members">{{ tenant.member_search_heading }}</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

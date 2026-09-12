@@ -1,0 +1,39 @@
+[project]
+name = "cua"
+version = "0.1.0"
+description = "Computer-use automation: LLM discovers a UI flow once, replays it deterministically."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "jinja2>=3.1",
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "typer>=0.12",
+    "python-dotenv>=1.0",
+    "playwright>=1.47",
+    "anthropic>=0.40",
+    "pillow>=10.0",
+    "httpx>=0.27",
+    "python-multipart>=0.0.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+cua = "cua.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cua", "mockbank"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
