@@ -49,6 +49,7 @@ class DesktopSurface:
     """Satisfies `Surface` structurally. Every call raises with the reason."""
 
     def __init__(self, app_ref: str) -> None:
+        self._guards: list = []
         self._app_ref = app_ref
 
     @property
@@ -64,6 +65,12 @@ class DesktopSurface:
             can_screenshot=True,
             supports_coordinates=True,
         )
+
+    def add_guard(self, guard) -> None:
+        """Guards attach the same way on every surface -- that is the point of
+        the protocol. A desktop adapter would run them in `act()` exactly as the
+        web one does."""
+        self._guards.append(guard)
 
     async def observe(self) -> Observation:
         raise NotImplementedError(_WHY)

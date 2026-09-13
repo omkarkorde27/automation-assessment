@@ -61,23 +61,11 @@ from .result import (
 )
 
 
-class CredentialResolver:
-    """Turns `env:NAME` into a value, in memory, for the length of one action.
-
-    A separate object so the engine never sees a profile's raw credential map
-    and nothing that journals or screenshots ever receives one.
-    """
-
-    def __init__(self, env: dict[str, str] | None = None) -> None:
-        import os
-
-        self._env = env if env is not None else dict(os.environ)
-
-    def resolve(self, ref: str) -> str:
-        scheme, _, name = ref.partition(":")
-        if scheme == "env":
-            return self._env.get(name, "")
-        raise ValueError(f"credential scheme '{scheme}' is not supported in this build")
+# Authentication lives in `session.auth`: the profile says how to sign in to a
+# product, and replay is not the only thing that needs to. Re-exported here so
+# every existing `from cua.replay.engine import CredentialResolver` keeps
+# working -- there is one implementation, not two.
+from ..session.auth import Authenticator, CredentialResolver  # noqa: F401
 
 
 @dataclass

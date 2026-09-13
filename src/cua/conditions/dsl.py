@@ -97,7 +97,7 @@ def _regex(pattern: str) -> re.Pattern | None:
         return None
 
 
-def _node_matches(node: UiNode, match: ElementMatch) -> bool:
+def node_matches(node: UiNode, match: ElementMatch) -> bool:
     if match.role is not None and node.role != match.role:
         return False
     if match.name is not None and node.norm_name != normalize_name(match.name):
@@ -157,7 +157,7 @@ def evaluate(cond: Condition, ctx: EvalContext) -> bool:
             if not ok:
                 raise UnsupportedOperator("frame", why, describe(cond))
         pool = _nodes_in_frame(ctx, cond.frame)
-        matched = [n for n in pool if n.visible and _node_matches(n, cond.element)]
+        matched = [n for n in pool if n.visible and node_matches(n, cond.element)]
 
         if cond.text_matches is not None:
             rx = _regex(cond.text_matches)

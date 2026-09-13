@@ -93,6 +93,32 @@ class ProfileRepository:
             f"(looked for {[str(c) for c in candidates if c]})"
         )
 
+    def tenants(self) -> list[str]:
+        """Every tenant overlay on disk, by file stem."""
+        directory = self.root / "tenants"
+        return sorted(p.stem for p in directory.glob("*.yaml")) if directory.exists() else []
+
+    def label_variants(self, product_ref: str) -> dict[str, list[str]]:
+        """How each label is spelled across every tenant of one product.
+
+        The recorder uses this to generate a name pattern that already spans the
+        institutions this capability will run against, instead of recording one
+        tenant's wording and discovering the difference on the first cross-tenant
+        replay. `label_overrides` existing per tenant is what makes the mapping
+        knowable at record time rather than at failure time.
+        """
+        variants: dict[str, set[str]] = {}
+        for tenant in self.tenants():
+            try:
+                profile = self.load_raw(tenant)
+            except ProfileError:
+                continue
+            if profile.extends != product_ref:
+                continue
+            for base, override in profile.overrides.label_overrides.items():
+                variants.setdefault(base.casefold(), {base.casefold()}).add(override.casefold())
+        return {base: sorted(spellings) for base, spellings in variants.items()}
+
     def load_raw(self, ref: str) -> AppProfile:
         path = self._find(ref)
         try:

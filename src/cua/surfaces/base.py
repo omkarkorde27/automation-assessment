@@ -136,6 +136,16 @@ class Surface(Protocol):
     async def act(self, action: Action) -> ActionResult:
         """Perform one action. Guards run first; locators resolve uniquely or fail."""
 
+    def add_guard(self, guard: ActionGuard) -> None:
+        """Install a guard for the life of this session.
+
+        Registration is part of the protocol so policy can only ever be attached
+        to the choke point. A caller that wanted to enforce a rule itself --
+        checking risk before calling `act()` -- would be creating a second
+        enforcement point that the next caller would forget, which is how a
+        guardrail quietly becomes a convention.
+        """
+
     async def screenshot(self, *, full_page: bool = False) -> bytes: ...
 
     async def current_url(self) -> str: ...

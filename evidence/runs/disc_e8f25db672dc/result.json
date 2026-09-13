@@ -1,0 +1,9 @@
+{
+  "run_id": "disc_e8f25db672dc",
+  "status": "finished",
+  "finished_at": "2026-09-13T23:32:21.469333+00:00",
+  "artifact": "member.lookup_balance@1.0.0",
+  "content_hash": "sha256:e55027db2a82663891f2c8e6291655ab8fce3ab697ebe13dd15b37194386eff6",
+  "verified_by_replay": true,
+  "verification_skipped": null
+}
