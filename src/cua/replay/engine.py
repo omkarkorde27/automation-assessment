@@ -49,7 +49,7 @@ from ..locators.resolve import LocatorError, resolve_node
 from ..observability.journal import Journal, MemoryJournal
 from ..perception.model import Observation
 from ..profiles.resolve import ResolvedProfile
-from ..surfaces.base import Action, ActionType, PolicyDenied, Surface
+from ..surfaces.base import Action, ActionType, PolicyDenied, RiskTier, Surface
 from .result import (
     BusinessOutcome,
     Escalated,
@@ -439,6 +439,34 @@ class ReplayEngine:
                     FailureClass.SESSION_EXPIRED, at_step=step.id,
                     expected="an authenticated session",
                     observed="the session expired and this app does not permit resuming",
+                )
+
+            # R-M6-1. Resuming replays [resume_at, index] forward, so every
+            # irreversible step in that window would be posted a second time --
+            # whether it is the step that was interrupted (did the write land
+            # before the request was rejected?) or one that already completed
+            # (its checkpoint is false on the post-login screen, so the rewind
+            # walks straight back past it). Neither question is answerable from
+            # outside the application, and "we do not know whether we posted
+            # this" is an escalation, never a retry.
+            window = self.artifact.steps[resume_at:index + 1]
+            irreversible = [s for s in window if s.risk is RiskTier.SUBMIT_IRREVERSIBLE]
+            if irreversible:
+                named = ", ".join(s.id for s in irreversible)
+                self.journal.emit(
+                    "resume.blocked_irreversible", interrupted_at=step.id,
+                    would_replay=[s.id for s in window], irreversible=[s.id for s in irreversible],
+                )
+                self._trace(step, ok=False, resolved_by=resolved_by, degraded=degraded,
+                            recoveries=ladder.recoveries, started=started,
+                            note="resume would repeat an irreversible step")
+                return self._escalate(
+                    "IRREVERSIBLE_INTERRUPTED", step.id,
+                    f"The session dropped while running {step.id}. Resuming would re-run "
+                    f"irreversible step(s) {named} ({', '.join(s.intent for s in irreversible)}), "
+                    f"and whether that write already took effect cannot be determined from "
+                    f"outside the application. Check whether it landed, then either mark this "
+                    f"run complete or allow it to re-run.",
                 )
 
             self._trace(step, ok=False, resolved_by=resolved_by, degraded=degraded,
@@ -839,8 +867,6 @@ class ReplayEngine:
         url = None
         if spec.url_template:
             url = self._render(spec.url_template, params)
-
-        from ..surfaces.base import RiskTier
 
         return Action(
             type=spec.type,

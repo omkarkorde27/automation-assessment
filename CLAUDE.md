@@ -37,7 +37,7 @@ A deviation is not a problem — several have been improvements. Undisclosed dev
 | | |
 |---|---|
 | **Current milestone** | **M3 — complete**, awaiting "continue" before M4. |
-| Completed | **M0** — uv scaffold, `.env`, `mockbank` fixture (both flows, 2 tenants, 8 faults, churned ids), CLI.<br>**M1** — `Surface` seam, JS observation extractor, `UiNode`/`Observation`, `LocatorBundle` + resolver, Playwright + desktop-stub adapters.<br>**M2** — `Condition` schema, `CapabilityArtifact` + `ArtifactStore`, `AppProfile` + product→tenant merge + `specialize()`, fingerprint/drift. Real profiles committed for both tenants.<br>**M3** — condition DSL + preflight, `ReplayEngine`, evaluation ladder, four-variant result contract, journal, `resume_from` session recovery. Hand-authored artifacts for both flows in `tests/factories.py`. **220 tests pass.** |
+| Completed | **M0** — uv scaffold, `.env`, `mockbank` fixture (both flows, 2 tenants, 8 faults, churned ids), CLI.<br>**M1** — `Surface` seam, JS observation extractor, `UiNode`/`Observation`, `LocatorBundle` + resolver, Playwright + desktop-stub adapters.<br>**M2** — `Condition` schema, `CapabilityArtifact` + `ArtifactStore`, `AppProfile` + product→tenant merge + `specialize()`, fingerprint/drift. Real profiles committed for both tenants.<br>**M3** — condition DSL + preflight, `ReplayEngine`, evaluation ladder, four-variant result contract, journal, `resume_from` session recovery. Hand-authored artifacts for both flows in `tests/factories.py`. **221 tests pass.** |
 | Next, on "continue" | M4 — discovery agent + recorder + the real LLM run |
 
 **Visual inspection:** `uv run python scripts/watch_replay.py --tenant valley-cu` (M2 merge + cross-tenant replay, headed); `--inject error_500` / `--inject session_timeout` (M3 failure and recovery paths). `--arm-at-step` chooses where the fault lands; `--headless --no-pause --slow-mo 0` for a fast check.
@@ -46,6 +46,7 @@ A deviation is not a problem — several have been improvements. Undisclosed dev
 - **R-M3-1** — a `Condition` using an operator the surface cannot evaluate is rejected at **replay preflight** (`CAPABILITY_UNSUPPORTED`, before any action); the evaluator raises as a backstop and never returns a bool it cannot justify.
 - **R-M3-2** — `ElementCondition.frame` unset = any frame; `UrlCondition.frame` unset = top-level page. Opposite on purpose; do not unify.
 - **R-M4-1** — the recorder must never emit `{literal: V}` when `V` matches a declared goal input, and must refuse outright when `V` is data read off the screen.
+- **R-M6-1** — a resumed flow must never silently repeat an irreversible step. **Default-deny ships with M3**: if the replay window `[resume_at, interrupted]` contains a `submit_irreversible` step, the run escalates with `IRREVERSIBLE_INTERRUPTED` instead of resuming. **M6 adds `Step.completion_witness`** — a declared `Condition` proving whether the write landed, so the engine can skip or re-run deterministically instead of paging. Idempotency keys were rejected (they need target-side support a no-API app cannot give); a target-independent "did it land" check was rejected as impossible in principle (the app is the only authority — two-generals).
 
 **Schema notes (deviations from the plan):**
 - **M1** — `AnchorRelative` gained a `same_column` relation and an optional `scope`. A grid read ("the Balance cell of the Savings row") is a 2-D lookup §3.2.1's candidates could only express as a positional ordinal.
@@ -67,6 +68,7 @@ Milestones: **M0** scaffold+mockbank · **M1** surface+locators · **M2** artifa
 5. **Policy lives in `Surface.act()`**, the single choke point. Allowlist and risk-tier checks are never implemented as prompt instructions.
 6. **Secrets and PII never reach artifacts, journals, screenshots, or prompts.** Profiles hold credential *references* (`env:…`), never values. Artifacts store value *shapes*, never values.
 7. **Post-action evaluation ladder, in this order:** recoveries → business outcomes → hard failures → checkpoint. The order is load-bearing.
+7b. **An irreversible step is never replayed by a resume.** If the rewind window contains one, escalate (R-M6-1). "We don't know whether we posted this" is an escalation, never a retry.
 8. **The control lease is checked inside `act()`.** A non-holder physically cannot act on the session.
 9. **Artifacts bind to a vendor product + version range, not a tenant.** Tenant specialization is an overlay, capped at depth 2.
 10. **No queues, services, clusters, or multi-tenant plumbing.** The brief explicitly does not reward them. Document the seam instead.
