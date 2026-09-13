@@ -30,6 +30,7 @@ NAV = (FrameRef(name="nav"),)
 
 
 def bundle(target_id, *candidates, frame=CONTENT, **kw) -> LocatorBundle:
+    kw.setdefault("notes", "live-surface test fixture")
     return LocatorBundle(target_id=target_id, frame_path=frame, candidates=candidates, **kw)
 
 
@@ -39,6 +40,12 @@ MEMBER_ID_FIELD = bundle(
     RoleNameExact(role="textbox", name="Member ID"),          # will not match -- by design
     AnchorRelative(anchor=Anchor(pattern=r"(?i)member\s*id|account holder\s*#"),
                    relation="same_row", target_role="textbox"),
+    notes=(
+        "No accessible name and a per-render id, so candidate 0 never matches -- it is "
+        "recorded only to detect the day this app starts labelling the field. The "
+        "anchor-relative candidate keys on the label cell in the same row, and its "
+        "pattern spans both tenants' wording."
+    ),
 )
 SEARCH_BUTTON = bundle("search_button", RoleNameExact(role="button", name="Search"))
 SIGN_IN_BUTTON = bundle("sign_in", RoleNameExact(role="button", name="Sign In"))

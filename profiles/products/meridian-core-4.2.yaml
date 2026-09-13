@@ -1,0 +1,265 @@
+# Meridian Core 4.2 -- the VENDOR PRODUCT profile.
+#
+# Facts about the application itself, true for every institution running it and
+# for every capability recorded against it. No host, no branding, no tenant.
+# Tenant overlays in ../tenants/ supply those.
+#
+# Authored by hand. That is the point: if this schema were only writable by the
+# recorder, nobody could review or fix an app-level fact without re-recording.
+
+schema_version: "1.0"
+
+profile:
+  id: meridian-core
+  version: "4.2"
+  vendor: meridian
+  product: core
+  display_name: Meridian Core Banking
+
+extends: null
+
+surface:
+  kind: legacy_web
+  base_url: null          # a product has no host; the tenant overlay supplies it
+  frame_topology:
+    - {name: nav, required: true}
+    - {name: content, required: true}
+  viewport: {width: 1280, height: 900}
+  timeouts:
+    default_ms: 8000
+    navigation_ms: 15000
+    slow_load_grace_ms: 20000
+
+auth:
+  # References, never values. This file is committed to version control.
+  credentials:
+    username: env:MOCKBANK_USER
+    password: env:MOCKBANK_PASS
+
+  login_recipe:
+    steps:
+      - id: login_navigate
+        intent: Open the application shell, which redirects an unauthenticated
+          session to the sign-in screen inside the content frame
+        action:
+          type: navigate
+          url_template: "{base_url}/"
+        risk: navigate
+
+      - id: login_user
+        intent: Enter the service account user id
+        action:
+          type: fill
+          value_from: {credential: username}
+          target:
+            target_id: login_user_field
+            frame_path: [{name: content}]
+            notes: >-
+              The sign-in screen is the one place this app uses proper
+              label/for association, so label_for is the primary candidate.
+              An ordinal fallback is scoped to the Sign In panel.
+            candidates:
+              - {strategy: label_for, control_role: textbox, label_text: User ID}
+              - {strategy: role_name_exact, role: textbox, name: User ID}
+              - strategy: role_ordinal
+                role: textbox
+                ordinal: 0
+                scope:
+                  anchor: {text: Sign In}
+                  relation: within_section
+        risk: input
+
+      - id: login_password
+        intent: Enter the service account password
+        action:
+          type: fill
+          value_from: {credential: password}
+          target:
+            target_id: login_password_field
+            frame_path: [{name: content}]
+            notes: Same labelling as the user id field.
+            candidates:
+              - {strategy: label_for, control_role: textbox, label_text: Password}
+              - {strategy: role_name_exact, role: textbox, name: Password}
+        risk: input
+
+      - id: login_submit
+        intent: Submit the sign-in form
+        action:
+          type: click
+          target:
+            target_id: login_submit_button
+            frame_path: [{name: content}]
+            notes: >-
+              Submit inputs take their accessible name from @value, which is
+              stable across tenants because it is not branded copy.
+            candidates:
+              - {strategy: role_name_exact, role: button, name: Sign In}
+              - {strategy: role_name_pattern, role: button, name_pattern: "(?i)sign ?in|log ?in"}
+        risk: submit_reversible
+        checkpoint:
+          url: {matches: "/home$"}
+          frame: [{name: content}]
+
+    success:
+      all:
+        - url: {matches: "/home$"}
+          frame: [{name: content}]
+        - element: {role: columnheader, name: Queue}
+          exists: true
+
+  # "Are we authenticated?" -- an app fact every capability can hit and none
+  # should declare. Matching the sign-in screen rather than only `expired=1`
+  # covers a fresh session as well as an expired one; matching only the expiry
+  # marker would let a first run walk into the login screen and fail its first
+  # checkpoint instead of signing in.
+  session_expiry_detector:
+    any:
+      - url: {matches: "/login"}
+        frame: [{name: content}]
+      - element: {role: alert, name_matches: "(?i)session has expired"}
+        exists: true
+
+  reauth:
+    enabled: true
+    max_attempts: 1
+    resume_from: last_checkpoint
+
+# App-wide recoveries. Bounded, automatic, journaled -- and NOT result variants:
+# a dismissed interstitial is not something the caller needs to hear about.
+recoveries:
+  - id: dismiss_marketing_interstitial
+    description: >-
+      The release-notes modal is a real overlay that intercepts clicks, so
+      ignoring it fails the next action rather than being harmless.
+    trigger:
+      element: {role: dialog, name_matches: "(?i)what's new"}
+      exists: true
+    actions:
+      - type: click
+        target:
+          target_id: interstitial_close
+          frame_path: [{name: content}]
+          notes: >-
+            Scoped within the dialog so it cannot match a Close button
+            elsewhere on the page.
+          candidates:
+            - strategy: role_name_exact
+              role: button
+              name: Close
+              scope:
+                anchor: {pattern: "(?i)what's new"}
+                relation: within_dialog
+            - strategy: role_name_pattern
+              role: button
+              name_pattern: "(?i)close|dismiss|ok"
+              scope:
+                anchor: {pattern: "(?i)what's new"}
+                relation: within_dialog
+    max_attempts: 2
+
+  - id: wait_out_spinner
+    description: >-
+      Transient slowness. The app serves a real interstitial loading page that
+      refreshes itself, so the fix is to wait for the progressbar to go, not to
+      retry the action.
+    trigger:
+      element: {role: progressbar}
+      exists: true
+    actions:
+      - type: wait
+        wait_for:
+          element: {role: progressbar}
+          exists: false
+    max_attempts: 1
+
+# Terminal application faults. Never retried, never mistaken for an outcome.
+# Deliberately worded to NOT match "Not Authorized", which is a legitimate
+# business result that capabilities declare for themselves.
+hard_failures:
+  - code: APP_ERROR
+    description: The app's generic 500 page.
+    detect:
+      any:
+        - element: {role: alert, name_matches: "(?i)unexpected error occurred"}
+          exists: true
+        - text_present: "(?i)servletexception|stack trace"
+
+# Consulted only when no declared outcome matched -- these are the states no
+# capability anticipated, which is exactly when a person is needed.
+stuck_patterns:
+  - id: permission_wall
+    detect:
+      element: {role: alert, name_matches: "(?i)not authorized"}
+      exists: true
+    reason_class: PERMISSION_REQUIRED
+    human_message: >-
+      The service account is not authorized for this record. A privileged
+      operator must complete the step, or the request should be declined.
+
+  - id: unexpected_dialog
+    description: Catch-all for a modal matching no recovery and no outcome.
+    detect:
+      element: {role: dialog}
+      exists: true
+    reason_class: UNEXPECTED_DIALOG
+    human_message: >-
+      An unrecognized dialog appeared. Resolve it, then hand control back so the
+      run can continue from the current step.
+
+# Where the regulated data is. Node rules are the real mechanism; the regex
+# detectors are a net for values that leak somewhere unexpected.
+sensitivity:
+  node_rules:
+    - match:
+        role: cell
+        scope: {anchor: {text: SSN}, relation: within_row}
+      classification: pii_ssn
+      mask: [screenshot, text]
+    - match:
+        role: cell
+        scope: {anchor: {text: Date of Birth}, relation: within_row}
+      classification: pii_dob
+      mask: [screenshot, text]
+    - match:
+        role: cell
+        scope: {anchor: {text: Account Number}, relation: within_table}
+      classification: account_number
+      mask: [text]
+  text_detectors: [ssn, card_luhn, email, phone]
+  output_redaction_defaults:
+    account_number: last4
+    ssn: drop
+
+# Drift canaries. `include` selects LABELS, never data -- a fingerprint that
+# changed with the member you looked up would report drift on every run.
+fingerprint:
+  algorithm: sha256_sorted_role_name
+  key_screens:
+    - id: member_search
+      reach:
+        url: {matches: "/members$"}
+        frame: [{name: content}]
+      include:
+        roles: [cell, button]
+        normalize: [collapse_ws, casefold]
+
+    - id: member_detail
+      reach:
+        url: {matches: "/members/[^/]+$"}
+        frame: [{name: content}]
+      include:
+        roles: [columnheader, link, button]
+        normalize: [collapse_ws, casefold]
+
+    - id: subaccount_form
+      reach:
+        url: {matches: "/subaccount/new$"}
+        frame: [{name: content}]
+      include:
+        roles: [label, button, combobox]
+        normalize: [collapse_ws, casefold]
+
+  drift_policy:
+    on_mismatch: demote_to_draft
+    alert: true

@@ -151,16 +151,21 @@ def _in_scope(node: UiNode, scope: SectionScope | None) -> bool:
     return False
 
 
-def _frame_matches(node: UiNode, refs: tuple[FrameRef, ...], obs: Observation) -> bool:
-    """Outside-in frame path match. Empty refs mean the top-level document."""
-    if len(node.frame_path) != len(refs):
+def frame_path_matches(path: tuple[str, ...], refs: tuple[FrameRef, ...], obs: Observation) -> bool:
+    """Outside-in frame path match. Empty refs mean the top-level document.
+
+    Public because the condition evaluator needs the same semantics -- a
+    checkpoint scoped to the content frame and a locator scoped to the content
+    frame must agree on what "the content frame" means.
+    """
+    if len(path) != len(refs):
         return False
-    for depth, (segment, ref) in enumerate(zip(node.frame_path, refs)):
+    for depth, (segment, ref) in enumerate(zip(path, refs)):
         if ref.name is not None:
             if segment != ref.name:
                 return False
         elif ref.url_pattern is not None:
-            url = obs.frame_urls.get("/".join(node.frame_path[: depth + 1]), "")
+            url = obs.frame_urls.get("/".join(path[: depth + 1]), "")
             if not re.search(ref.url_pattern, url):
                 return False
         elif ref.index is not None:
@@ -170,6 +175,10 @@ def _frame_matches(node: UiNode, refs: tuple[FrameRef, ...], obs: Observation) -
         else:
             return False
     return True
+
+
+def _frame_matches(node: UiNode, refs: tuple[FrameRef, ...], obs: Observation) -> bool:
+    return frame_path_matches(node.frame_path, refs, obs)
 
 
 # --------------------------------------------------------------------------

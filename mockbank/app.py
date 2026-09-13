@@ -54,23 +54,32 @@ async def arm_injected_fault(request: Request, call_next):
     return await call_next(request)
 
 
-def _ctx(request: Request, tenant: Tenant, **extra) -> dict:
+def _ctx(request: Request, tenant: Tenant, *, allow_interstitial: bool = True, **extra) -> dict:
     """Base template context. `cid` mints churned ids; `show_interstitial`
-    is resolved once per render so the modal fires exactly one time."""
+    is resolved once per render so the modal fires exactly one time.
+
+    `allow_interstitial=False` for the shell and the nav frame: those render on
+    every page load, and letting them consume the armed firing means the modal
+    never reaches a content screen -- the one place it actually obstructs
+    anything.
+    """
     ctx = {
         "request": request,
         "tenant": tenant,
         "cid": IdChurn(),
-        "show_interstitial": faults.consume(tenant.slug, "interstitial"),
+        "show_interstitial": allow_interstitial and faults.consume(tenant.slug, "interstitial"),
         "page_title": extra.pop("page_title", "Meridian Core"),
     }
     ctx.update(extra)
     return ctx
 
 
-def _render(request: Request, tenant: Tenant, template: str, status: int = 200, **extra) -> HTMLResponse:
+def _render(request: Request, tenant: Tenant, template: str, status: int = 200,
+            allow_interstitial: bool = True, **extra) -> HTMLResponse:
     return TEMPLATES.TemplateResponse(
-        request=request, name=template, context=_ctx(request, tenant, **extra), status_code=status
+        request=request, name=template,
+        context=_ctx(request, tenant, allow_interstitial=allow_interstitial, **extra),
+        status_code=status,
     )
 
 
@@ -146,14 +155,15 @@ async def root() -> RedirectResponse:
 async def shell(request: Request, slug: str) -> Response:
     tenant = _tenant_or_404(slug)
     return _render(
-        request, tenant, "frameset.html", content_src=f"/t/{tenant.slug}/home"
+        request, tenant, "frameset.html", allow_interstitial=False,
+        content_src=f"/t/{tenant.slug}/home",
     )
 
 
 @app.get("/t/{slug}/nav", response_class=HTMLResponse)
 async def nav(request: Request, slug: str) -> Response:
     tenant = _tenant_or_404(slug)
-    return _render(request, tenant, "nav.html")
+    return _render(request, tenant, "nav.html", allow_interstitial=False)
 
 
 @app.get("/t/{slug}/login", response_class=HTMLResponse)

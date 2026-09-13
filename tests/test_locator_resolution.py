@@ -53,6 +53,10 @@ def obs(*nodes, frames=(("content",),)) -> Observation:
 
 def bundle(*candidates, **kw) -> LocatorBundle:
     kw.setdefault("frame_path", (FrameRef(name="content"),))
+    # Boilerplate notes: these tests exercise resolution semantics, where the
+    # reasoning text is irrelevant. Enforcement of the real requirement is
+    # pinned by test_a_bundle_without_reasoning_is_rejected below.
+    kw.setdefault("notes", "resolver unit-test fixture")
     return LocatorBundle(target_id=kw.pop("target_id", "t1"), candidates=candidates, **kw)
 
 
@@ -73,6 +77,37 @@ def bundle(*candidates, **kw) -> LocatorBundle:
 )
 def test_normalize_name(raw, expected):
     assert normalize_name(raw) == expected
+
+
+def test_a_bundle_without_reasoning_is_rejected():
+    """`notes` is required at the schema level.
+
+    A locator with no stated reasoning cannot be reviewed: someone deciding
+    whether a capability may run unattended against a bank's back office cannot
+    judge role=textbox name='Member ID' without knowing whether that name is
+    stable, branded, or per-tenant. The brief asks for the reasoning explicitly,
+    so the schema refuses a bundle that omits it.
+    """
+    candidates = (RoleNameExact(role="button", name="Search"),)
+    with pytest.raises(ValidationError):
+        LocatorBundle(target_id="t1", candidates=candidates)
+
+    ok = LocatorBundle(target_id="t1", candidates=candidates,
+                       notes="Named by @value, stable across tenants.")
+    assert ok.notes
+
+
+def test_hand_authored_bundles_need_no_record_time_snapshot():
+    """`recorded` and `stability_score` stay optional on purpose: the login
+    recipe and interstitial-dismiss bundles are authored in the app profile and
+    were never observed by the recorder."""
+    authored = LocatorBundle(
+        target_id="login_submit_button",
+        candidates=(RoleNameExact(role="button", name="Sign In"),),
+        notes="Submit input named by @value.",
+    )
+    assert authored.recorded is None
+    assert authored.stability_score == 0.0
 
 
 def test_normalization_keeps_tenants_distinguishable():
@@ -172,8 +207,17 @@ def test_a_filter_that_matches_nothing_is_discarded_not_applied():
 
 
 def test_best_scored_policy_accepts_ambiguity_but_demands_justification():
-    with pytest.raises(ValidationError):
-        bundle(RoleNameExact(role="row", name="result"), match_policy="best_scored")
+    # Constructed directly rather than through the helper: the helper supplies
+    # boilerplate notes, which would satisfy the validator and hide what is
+    # under test here -- that opting into ambiguity requires saying why.
+    with pytest.raises(ValidationError, match="justification"):
+        LocatorBundle(
+            target_id="t1",
+            frame_path=(FrameRef(name="content"),),
+            candidates=(RoleNameExact(role="row", name="result"),),
+            match_policy="best_scored",
+            notes="",
+        )
 
     o = obs(node("n1", "row", "result", y=10), node("n2", "row", "result", y=90))
     r = resolve(

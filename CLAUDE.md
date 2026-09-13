@@ -15,17 +15,42 @@ An LLM discovers how to do a task once → the run is frozen into a typed, versi
 
 1. **Read `STATUS` below** — it names the current milestone and what is done.
 2. **Read the approved plan:** `/Users/User/.claude/plans/precious-singing-rocket.md`. It is the source of truth for all design — schemas, error taxonomy, control model, milestones. **Do not redesign.** If something in it looks wrong, say so and ask; don't quietly deviate.
-3. **Implement only the current milestone.** Then stop, summarize (every file created/changed + real test output), and **wait for the user to say "continue."** Approval of the summary is not permission to start the next one.
+3. **Implement only the current milestone.** Then run the plan-diff gate below, stop, summarize (every file created/changed + real test output), and **wait for the user to say "continue."** Approval of the summary is not permission to start the next one.
+
+### Plan-diff gate — mandatory before every milestone summary
+
+Before writing a milestone summary, **open the plan section that milestone implements and diff it field by field against the code — the whole section, top to bottom.** Do not list deviations from memory; recall finds the ones you happened to think about and misses the rest, which is how a summary ends up claiming "the only deviation is X" when there were four.
+
+Method, per milestone:
+1. Re-read the plan section in full (Part 3.x / the milestone's row in Part 10).
+2. Walk **every field, key, and enum value** in the plan's schema block against the implementation, in the plan's order.
+3. Classify each difference: **structural** (shape/type/cardinality changed), **vocabulary** (names or enum members changed), **policy** (unspecified in the plan, decided during implementation — e.g. what the content hash covers), **additive** (new field, plan silent), or **declared-but-unconsumed** (below).
+4. For every schema field carrying real semantics, **grep `src/` for a read site.** A field that is defined, serialized, and set in a committed profile is still unimplemented if nothing ever reads it. `grep -rn "field_name" src/` returning only the definition line is the signal.
+5. Put the resulting table in the summary. "No deviations" is a valid result *only* after the walk.
+
+**Declared-but-unconsumed** is its own category because it does not look like a deviation from any angle the other four cover: the plan says it, the schema has it, a profile sets it, the tests pass, and the behaviour is simply absent. `auth.reauth.resume_from` survived the entire M3 gate that way — the gate walked §3.4 and §3.5 for shape and vocabulary, found the mid-flow session handling present, and recorded it as *additive*. It was a gap. The engine re-ran the interrupted step instead of resuming from the last checkpoint, which worked only because the one test covering it armed the fault on a `navigate` step; every deeper failure point reported `LOCATOR_UNRESOLVED` for a healthy app. A schema is a claim about behaviour, and only a read site makes the claim true.
+
+A deviation is not a problem — several have been improvements. Undisclosed deviation is the problem: it makes the plan stop describing the system, and every later milestone builds on a spec that quietly no longer matches.
 
 ## STATUS
 
 | | |
 |---|---|
-| **Current milestone** | **M2 — artifact schema + store, `AppProfile` schema + product→tenant merge + fingerprinting** (not started; awaiting "continue") |
-| Completed | **M0** — uv scaffold, `.env`, `mockbank` fixture (both flows, 2 tenants, 8 faults, churned ids), CLI.<br>**M1** — `Surface` seam, JS observation extractor, `UiNode`/`Observation`, `LocatorBundle` + resolver, Playwright + desktop-stub adapters. 69 tests pass. |
-| Next, on "continue" | M2 |
+| **Current milestone** | **M3 — complete**, awaiting "continue" before M4. |
+| Completed | **M0** — uv scaffold, `.env`, `mockbank` fixture (both flows, 2 tenants, 8 faults, churned ids), CLI.<br>**M1** — `Surface` seam, JS observation extractor, `UiNode`/`Observation`, `LocatorBundle` + resolver, Playwright + desktop-stub adapters.<br>**M2** — `Condition` schema, `CapabilityArtifact` + `ArtifactStore`, `AppProfile` + product→tenant merge + `specialize()`, fingerprint/drift. Real profiles committed for both tenants.<br>**M3** — condition DSL + preflight, `ReplayEngine`, evaluation ladder, four-variant result contract, journal, `resume_from` session recovery. Hand-authored artifacts for both flows in `tests/factories.py`. **220 tests pass.** |
+| Next, on "continue" | M4 — discovery agent + recorder + the real LLM run |
 
-**Schema note (M1):** `AnchorRelative` gained a `same_column` relation and an optional `scope`, extending plan §3.2.1. A grid read ("the Balance cell of the Savings row") is a 2-D lookup the original candidate set could not express without falling back to a positional ordinal.
+**Visual inspection:** `uv run python scripts/watch_replay.py --tenant valley-cu` (M2 merge + cross-tenant replay, headed); `--inject error_500` / `--inject session_timeout` (M3 failure and recovery paths). `--arm-at-step` chooses where the fault lands; `--headless --no-pause --slow-mo 0` for a fast check.
+
+**Named requirements carried into later milestones** (written into the plan, not just agreed in chat):
+- **R-M3-1** — a `Condition` using an operator the surface cannot evaluate is rejected at **replay preflight** (`CAPABILITY_UNSUPPORTED`, before any action); the evaluator raises as a backstop and never returns a bool it cannot justify.
+- **R-M3-2** — `ElementCondition.frame` unset = any frame; `UrlCondition.frame` unset = top-level page. Opposite on purpose; do not unify.
+- **R-M4-1** — the recorder must never emit `{literal: V}` when `V` matches a declared goal input, and must refuse outright when `V` is data read off the screen.
+
+**Schema notes (deviations from the plan):**
+- **M1** — `AnchorRelative` gained a `same_column` relation and an optional `scope`. A grid read ("the Balance cell of the Savings row") is a 2-D lookup §3.2.1's candidates could only express as a positional ordinal.
+- **M2** — telemetry moved to a **sidecar** (`capabilities/.telemetry/`) rather than living inside the artifact, so recording a replay never invalidates the content hash. `approval_state` stays in the artifact but is excluded from the hash: approving must not look like tampering.
+- **M3** — `auth.reauth.resume_from: last_checkpoint` means the deepest recorded checkpoint **that is still true of the current screen**, not the last one that passed. Re-authentication lands on the app's post-login screen, so the recorded checkpoint is usually stale; checkpoints are re-evaluated deepest-first against the live screen and the flow re-enters after the first that holds, falling back to step 0. A step with **no** checkpoint is never a resume point — it verified nothing.
 
 *Update this table at every milestone boundary.*
 

@@ -1,0 +1,56 @@
+# Valley Credit Union -- the same vendor product, configured differently.
+#
+# This is the multi-tenant case the brief describes, and the whole point of the
+# overlay: one recording, two institutions, no re-recording. The deltas are
+# exactly the three things that actually differ.
+
+schema_version: "1.0"
+
+profile:
+  id: valley-cu
+  version: "1"
+  vendor: meridian
+  product: core
+  display_name: Valley Credit Union
+
+extends: "meridian-core@4.2"
+
+surface:
+  base_url: "http://127.0.0.1:8800/t/valley-cu"
+
+overrides:
+  # This tenant renamed the field. Recorded locators carry a pattern candidate
+  # that already spans both spellings, so no locator override is needed -- the
+  # map exists so the recorder can generate tenant-spanning patterns and so a
+  # reviewer can see the difference is known rather than discovered.
+  label_overrides:
+    "member id": "account holder #"
+
+  # Their premium savings product is the default here.
+  param_defaults:
+    product_code: SAV2
+
+  # They do not run the vendor's release-notes modal.
+  disabled_recoveries: [dismiss_marketing_interstitial]
+
+# ...they run a consent modal instead. New id -> appended to the inherited list.
+recoveries:
+  - id: valley_terms_interstitial
+    description: Acceptable-use consent modal, same obstruction shape as the vendor's.
+    trigger:
+      element: {role: dialog, name_matches: "(?i)terms of use"}
+      exists: true
+    actions:
+      - type: click
+        target:
+          target_id: valley_terms_close
+          frame_path: [{name: content}]
+          notes: Scoped within the dialog, same reasoning as the vendor modal.
+          candidates:
+            - strategy: role_name_exact
+              role: button
+              name: Close
+              scope:
+                anchor: {pattern: "(?i)terms of use"}
+                relation: within_dialog
+    max_attempts: 1
