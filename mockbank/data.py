@@ -39,7 +39,15 @@ class Member:
         return next((a for a in self.accounts if a.kind.lower() == kind.lower()), None)
 
 
-MEMBERS: dict[str, Member] = {
+def _seed_members() -> dict[str, Member]:
+    """Build a fresh member set.
+
+    A factory rather than a module-level literal because opening a sub-account
+    mutates a member's account list. Without a rebuild, `reset()` left the
+    appended accounts behind and a later lookup saw two Savings rows -- which
+    the locator layer then (correctly) refused to resolve.
+    """
+    return {
     "12345": Member(
         member_id="12345",
         first_name="Dana",
@@ -89,7 +97,10 @@ MEMBERS: dict[str, Member] = {
         restricted=True,
         accounts=[Account("100012001", "Savings", 88000000)],
     ),
-}
+    }
+
+
+MEMBERS: dict[str, Member] = _seed_members()
 
 PRODUCT_CODES = [
     ("SAV", "Regular Savings"),
@@ -121,5 +132,8 @@ def find_members(query: str) -> list[Member]:
 
 
 def reset() -> None:
+    """Restore the fixture to its seeded state, members included."""
     OPENED.clear()
     _NEXT_ACCOUNT_SEQ[0] = 200050000
+    MEMBERS.clear()
+    MEMBERS.update(_seed_members())
