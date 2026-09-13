@@ -21,11 +21,11 @@ An LLM discovers how to do a task once → the run is frozen into a typed, versi
 
 | | |
 |---|---|
-| **Current milestone** | **M1 — `Surface` protocol, JS observation extractor, `UiNode`, locator bundle + resolver** (not started; awaiting "continue") |
-| Completed | **M0** — uv scaffold, `.env`, `mockbank` fixture (both flows, 2 tenants, 8 faults, churned ids), minimal CLI. 29 tests pass. |
-| Next, on "continue" | M1 |
+| **Current milestone** | **M2 — artifact schema + store, `AppProfile` schema + product→tenant merge + fingerprinting** (not started; awaiting "continue") |
+| Completed | **M0** — uv scaffold, `.env`, `mockbank` fixture (both flows, 2 tenants, 8 faults, churned ids), CLI.<br>**M1** — `Surface` seam, JS observation extractor, `UiNode`/`Observation`, `LocatorBundle` + resolver, Playwright + desktop-stub adapters. 69 tests pass. |
+| Next, on "continue" | M2 |
 
-**Before M1:** `uv run playwright install chromium` (browser binaries are not yet downloaded).
+**Schema note (M1):** `AnchorRelative` gained a `same_column` relation and an optional `scope`, extending plan §3.2.1. A grid read ("the Balance cell of the Savings row") is a 2-D lookup the original candidate set could not express without falling back to a positional ordinal.
 
 *Update this table at every milestone boundary.*
 

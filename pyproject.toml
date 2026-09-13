@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Computer-use automation: LLM discovers a UI flow once, replays it deterministically."
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.115",
+    "fastapi[standard]>=0.115",
     "uvicorn[standard]>=0.30",
     "jinja2>=3.1",
     "pydantic>=2.7",
@@ -35,5 +35,7 @@ build-backend = "hatchling.build"
 packages = ["src/cua", "mockbank"]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 addopts = "-q"
