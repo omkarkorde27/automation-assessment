@@ -213,11 +213,32 @@ class LocatorBundle(BaseModel):
     """Gates the coordinate candidate. Off unless the recorder found nothing
     better, so a weak locator is always a deliberate, visible decision."""
 
+    notes: str
+    """REQUIRED. Why this bundle is expected to keep resolving: what the primary
+    candidate keys on, what the fallbacks cover, and what is known to be
+    unstable about the control.
+
+    Not optional, because a locator without stated reasoning cannot be reviewed
+    -- a reviewer deciding whether a capability may run unattended against a
+    bank's back office has no way to judge "role=textbox, name='Member ID'"
+    without knowing whether that name is stable, branded, or per-tenant. This is
+    the brief's "how each target element is identified, with your reasoning
+    about robustness", and making it defaultable quietly removed it."""
+
     recorded: RecordedNode | None = None
+    """Optional, because not every bundle comes from a recording.
+
+    The login recipe and the interstitial-dismiss bundles are hand-authored in
+    the app profile -- they were never observed by the recorder, so there is no
+    record-time snapshot to carry. Requiring one would force an author to
+    fabricate a node, which is worse than admitting there isn't one. Populated
+    for every recorder-produced bundle."""
+
     stability_score: float = 0.0
-    notes: str = ""
-    """The recorder's robustness reasoning, surfaced in review. The brief asks
-    for "how each target is identified, with your reasoning" -- this is it."""
+    """Optional for the same reason: it is strategy weight x uniqueness margin
+    measured AT RECORD TIME, which a hand-authored bundle has no value for.
+    0.0 means "not measured", not "measured as fragile" -- read it alongside
+    `recorded`."""
 
     @model_validator(mode="after")
     def _policy_needs_justification(self) -> "LocatorBundle":

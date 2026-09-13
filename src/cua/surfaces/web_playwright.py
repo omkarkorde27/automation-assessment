@@ -108,6 +108,18 @@ class WebSurface:
             path = self._frame_path(frame)
             key = "/".join(path)
             try:
+                # A frame mid-navigation has a document but no content yet, and
+                # extracting from it yields zero nodes -- which downstream looks
+                # identical to "the control is gone" and produces a confident,
+                # wrong LOCATOR_UNRESOLVED. Waiting for the parse removes that
+                # whole class of false negative at the source. Bounded and
+                # swallowed: a frame that never settles is simply observed as it
+                # is, and the engine's settle loop handles the rest.
+                await frame.wait_for_load_state("domcontentloaded", timeout=2000)
+            except Exception:
+                pass
+
+            try:
                 raw = await frame.evaluate(_EXTRACTOR)
             except Exception:
                 # A frame that navigates mid-observation is normal, not fatal.
@@ -242,14 +254,36 @@ class WebSurface:
             return
 
         if action.type is ActionType.SELECT_OPTION:
+            # `cx, cy` are page-absolute so the mouse can use them, but
+            # elementFromPoint runs INSIDE the frame and takes frame-relative
+            # coordinates. Handing it the page coordinate finds whatever happens
+            # to sit at that offset within the frame -- the same mismatch that
+            # made every framed click land on the wrong control, surfacing here
+            # as "Element is not a <select> element".
+            offset_x, offset_y = await self._frame_offset(frame)
             handle = await frame.evaluate_handle(
-                "([x, y]) => document.elementFromPoint(x, y)", [cx, cy]
+                "([x, y]) => document.elementFromPoint(x, y)",
+                [cx - offset_x, cy - offset_y],
             )
             element = handle.as_element()
             if element is None:
                 raise RuntimeError("no element at the resolved point")
-            await element.select_option(label=action.value)
-            return
+
+            # Legacy dropdowns almost always carry a code as the option value
+            # and a human label as the text ("HSA" vs "HSA - Health Savings").
+            # A capability parameterized on the code must match the code, but a
+            # flow recorded from what a person saw will carry the label, so both
+            # are tried. Short timeouts: a miss here should fall through to the
+            # next attempt, not sit in Playwright's 30s retry loop.
+            for by in ("value", "label"):
+                try:
+                    await element.select_option(**{by: action.value}, timeout=2000)
+                    return
+                except PWTimeout:
+                    continue
+            raise RuntimeError(
+                f"no option matching {action.value!r} by value or by label"
+            )
 
         raise RuntimeError(f"unsupported action: {action.type}")
 

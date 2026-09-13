@@ -1,0 +1,19 @@
+# Demo Credit Union -- the tenant this product was recorded against.
+#
+# Almost empty, and that is the result we want: the base recording already fits,
+# so onboarding this institution costs a host name. Everything else is inherited
+# from meridian-core@4.2.
+
+schema_version: "1.0"
+
+profile:
+  id: demo-cu
+  version: "1"
+  vendor: meridian
+  product: core
+  display_name: Demo Credit Union
+
+extends: "meridian-core@4.2"
+
+surface:
+  base_url: "http://127.0.0.1:8800/t/demo-cu"
