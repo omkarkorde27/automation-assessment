@@ -1,0 +1,18 @@
+# Secrets — never commit
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Run artifacts (evidence committed selectively for the submission)
+evidence/runs/
+!evidence/runs/.gitkeep
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

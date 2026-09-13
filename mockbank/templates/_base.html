@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ page_title }} - {{ tenant.display_name }}</title>
+  <style>
+    body { font-family: Verdana, Arial, sans-serif; font-size: 12px; margin: 0; background: #eef1f4; }
+    .banner { background: {{ tenant.accent }}; color: #fff; padding: 8px 12px; font-weight: bold; }
+    .crumb { background: #dde3ea; padding: 4px 12px; font-size: 11px; color: #333; }
+    .pane { margin: 12px; background: #fff; border: 1px solid #b9c2cc; }
+    .paneHdr { background: #dde3ea; padding: 5px 8px; font-weight: bold; border-bottom: 1px solid #b9c2cc; }
+    .paneBody { padding: 10px; }
+    table.form td { padding: 4px 8px; font-size: 12px; vertical-align: middle; }
+    table.grid { border-collapse: collapse; width: 100%; }
+    table.grid th { background: #c9d4de; text-align: left; padding: 4px 8px; border: 1px solid #b9c2cc; }
+    table.grid td { padding: 4px 8px; border: 1px solid #d7dde4; }
+    .alert { background: #fdecea; border: 1px solid #c0392b; color: #7b241c; padding: 8px; margin-bottom: 10px; }
+    .notice { background: #fff8e1; border: 1px solid #d4a017; padding: 8px; margin-bottom: 10px; }
+    .ok { background: #eafaf1; border: 1px solid #27ae60; color: #145a32; padding: 8px; margin-bottom: 10px; }
+    input[type=text], input[type=password], select { font-family: Verdana; font-size: 12px; padding: 2px; border: 1px solid #8a97a5; }
+    input[type=submit], button { font-family: Verdana; font-size: 12px; padding: 3px 10px; }
+    .modalWrap { position: fixed; inset: 0; background: rgba(20,25,30,.45); z-index: 9000;
+                 display: flex; align-items: center; justify-content: center; }
+    .modal { background: #fff; border: 2px solid {{ tenant.accent }}; padding: 16px; width: 340px; }
+    .modal h3 { margin: 0 0 8px 0; font-size: 13px; }
+    .spin { padding: 40px; text-align: center; color: #555; }
+  </style>
+</head>
+<body>
+  <div class="banner">{{ tenant.display_name }} &middot; Meridian Core {{ tenant.product_version }}</div>
+  <div class="crumb">{{ crumb | default(page_title) }}</div>
+  {% if show_interstitial %}{% include "_interstitial.html" %}{% endif %}
+  {% block content %}{% endblock %}
+</body>
+</html>

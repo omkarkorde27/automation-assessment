@@ -1,0 +1,35 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="pane">
+  <div class="paneHdr">Confirm Sub-Account</div>
+  <div class="paneBody">
+    {% if duplicate %}
+      {# Another legitimate business outcome: the request is well-formed, the
+         institution simply already has this sub-account. #}
+      <div class="alert" role="alert">
+        A sub-account with product code {{ form.product_code }} already exists for this member.
+      </div>
+      <p><a href="/t/{{ tenant.slug }}/members/{{ m.member_id }}">Return to Member Detail</a></p>
+    {% else %}
+      <div class="notice">Review the request. Opening a sub-account cannot be undone.</div>
+      <table class="form">
+        <tr><td nowrap><b>{{ tenant.member_id_label }}</b></td><td>{{ m.member_id }}</td></tr>
+        <tr><td nowrap><b>Name</b></td><td>{{ m.full_name }}</td></tr>
+        <tr><td nowrap><b>Product Code</b></td><td>{{ form.product_code }}</td></tr>
+        <tr><td nowrap><b>Initial Deposit</b></td><td>{{ form.initial_deposit }}</td></tr>
+        <tr><td nowrap><b>Nickname</b></td><td>{{ form.nickname or '(none)' }}</td></tr>
+      </table>
+      {# The irreversible step. Policy blocks the agent here unless the artifact
+         is approved and the caller passed explicit confirmation. #}
+      <form method="post" action="/t/{{ tenant.slug }}/members/{{ m.member_id }}/subaccount/confirm"
+            style="margin-top:12px">
+        <input type="hidden" name="product_code" value="{{ form.product_code }}">
+        <input type="hidden" name="initial_deposit" value="{{ form.initial_deposit }}">
+        <input type="hidden" name="nickname" value="{{ form.nickname }}">
+        <input type="submit" value="Confirm and Open Account">
+        &nbsp;<a href="/t/{{ tenant.slug }}/members/{{ m.member_id }}/subaccount/new">Back</a>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

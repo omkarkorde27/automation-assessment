@@ -1,0 +1,50 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="pane">
+  <div class="paneHdr">Open Sub-Account &mdash; {{ m.full_name }} ({{ m.member_id }})</div>
+  <div class="paneBody">
+    {% if errors %}
+      <div class="alert" role="alert">
+        {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+      </div>
+    {% endif %}
+
+    {# Three labelling styles on one form, on purpose -- real legacy forms are
+       inconsistent, and each style needs a different locator candidate:
+         Product Code    -> proper <label for>      -> label_for
+         Initial Deposit -> sibling <td>, no `for`  -> anchor_relative
+         Nickname        -> aria-label              -> role + accessible name #}
+    <form method="post" action="/t/{{ tenant.slug }}/members/{{ m.member_id }}/subaccount/new">
+      <table class="form">
+        <tr>
+          <td nowrap><label for="{{ pc_id }}">Product Code</label></td>
+          <td>
+            <select id="{{ pc_id }}" name="product_code">
+              {% for code, label in product_codes %}
+              <option value="{{ code }}" {% if form.product_code == code %}selected{% endif %}>{{ code }} - {{ label }}</option>
+              {% endfor %}
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td nowrap>Initial Deposit</td>
+          <td><input type="text" id="{{ dep_id }}" name="initial_deposit" size="14"
+                     value="{{ form.initial_deposit | default('') }}"> (minimum $25.00)</td>
+        </tr>
+        <tr>
+          <td nowrap>Nickname</td>
+          <td><input type="text" id="{{ nk_id }}" name="nickname" size="28"
+                     aria-label="Nickname" value="{{ form.nickname | default('') }}"></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>
+            <input type="submit" value="Continue">
+            &nbsp;<a href="/t/{{ tenant.slug }}/members/{{ m.member_id }}">Cancel</a>
+          </td>
+        </tr>
+      </table>
+    </form>
+  </div>
+</div>
+{% endblock %}

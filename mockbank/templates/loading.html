@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  {# A real intermediate state, not a server-side sleep. Replay has to notice
+     the progressbar and wait it out; blindly asserting the checkpoint here
+     produces a false failure, which is precisely the transient-slowness case
+     the brief asks us to handle. #}
+  <meta http-equiv="refresh" content="{{ delay }};url={{ target }}">
+  <title>Loading - {{ tenant.display_name }}</title>
+  <style>
+    body { font-family: Verdana, Arial, sans-serif; font-size: 12px; background: #eef1f4; }
+    .spin { padding: 60px; text-align: center; color: #555; }
+  </style>
+</head>
+<body>
+  <div class="spin">
+    <div role="progressbar" aria-label="Loading">Loading, please wait&hellip;</div>
+  </div>
+</body>
+</html>

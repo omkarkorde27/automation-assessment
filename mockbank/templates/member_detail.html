@@ -1,0 +1,44 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="pane">
+  <div class="paneHdr">Member Detail</div>
+  <div class="paneBody">
+    <table class="form">
+      <tr><td nowrap><b>{{ tenant.member_id_label }}</b></td><td>{{ m.member_id }}</td></tr>
+      <tr><td nowrap><b>Name</b></td><td>{{ m.full_name }}</td></tr>
+      {# Regulated data. Rendered in full so the redaction layer has something
+         real to mask in observations, prompts, screenshots, and evidence.
+         Nothing downstream may ever persist these two rows. #}
+      <tr><td nowrap><b>SSN</b></td><td>{{ m.ssn }}</td></tr>
+      <tr><td nowrap><b>Date of Birth</b></td><td>{{ m.date_of_birth }}</td></tr>
+      <tr><td nowrap><b>Branch</b></td><td>{{ m.branch }}</td></tr>
+      <tr><td nowrap><b>Status</b></td><td>{{ m.status }}</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="pane">
+  <div class="paneHdr">Accounts</div>
+  <div class="paneBody">
+    {# The extraction target. "Current savings balance" is the Balance cell in
+       the row whose Type cell reads "Savings" -- an anchor-relative read, not a
+       positional one, because account order is not guaranteed. #}
+    <table class="grid">
+      <tr><th>Account Number</th><th>Type</th><th>Balance</th><th>Status</th></tr>
+      {% for a in m.accounts %}
+      <tr>
+        <td>{{ a.number }}</td>
+        <td>{{ a.kind }}</td>
+        <td>{{ a.balance }}</td>
+        <td>{{ a.status }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p style="margin-top:12px">
+      <a href="/t/{{ tenant.slug }}/members/{{ m.member_id }}/subaccount/new">Open Sub-Account</a>
+      &nbsp;|&nbsp;
+      <a href="/t/{{ tenant.slug }}/members">New Search</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

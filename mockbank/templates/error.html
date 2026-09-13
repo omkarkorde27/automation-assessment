@@ -1,0 +1,15 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="pane">
+  <div class="paneHdr">{{ heading }}</div>
+  <div class="paneBody">
+    <div class="alert" role="alert">{{ message }}</div>
+    {% if detail %}
+      {# Legacy apps leak internals on failure. Useful here: it gives the app
+         profile's hard-failure detector a distinctive string to match on. #}
+      <pre style="font-size:11px;color:#555;white-space:pre-wrap">{{ detail }}</pre>
+    {% endif %}
+    <p><a href="/t/{{ tenant.slug }}/home">Return to Dashboard</a></p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ tenant.display_name }} - Meridian Core</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    /* A two-frame shell. Real <frameset> is dead in modern engines, but nested
+       frames reproduce the property that actually matters for automation:
+       content lives in a named child document, so every locator needs a frame
+       path and "the page" is not one document. */
+    iframe { border: 0; }
+    #navFrame { width: 190px; height: 100%; float: left; border-right: 1px solid #b9c2cc; }
+    #contentFrame { height: 100%; width: calc(100% - 191px); float: left; }
+  </style>
+</head>
+<body>
+  <iframe id="navFrame" name="nav" title="Navigation" src="/t/{{ tenant.slug }}/nav"></iframe>
+  <iframe id="contentFrame" name="content" title="Content" src="{{ content_src }}"></iframe>
+</body>
+</html>

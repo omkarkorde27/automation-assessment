@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Navigation</title>
+  <style>
+    body { font-family: Verdana, Arial, sans-serif; font-size: 12px; margin: 0; background: #f4f6f8; }
+    .navHdr { background: {{ tenant.accent }}; color: #fff; padding: 6px 10px; font-weight: bold; font-size: 11px; }
+    a { display: block; padding: 6px 10px; color: #1a3c5e; text-decoration: none; border-bottom: 1px solid #e2e7ec; }
+    a:hover { background: #e2e9f0; }
+  </style>
+</head>
+<body>
+  <div class="navHdr">Servicing</div>
+  <a href="/t/{{ tenant.slug }}/home" target="content">Home</a>
+  <a href="/t/{{ tenant.slug }}/members" target="content">{{ tenant.member_search_heading }}</a>
+  <a href="/t/{{ tenant.slug }}/logout" target="_top">Sign Out</a>
+</body>
+</html>

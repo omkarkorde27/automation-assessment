@@ -1,0 +1,33 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="pane">
+  <div class="paneHdr">Search Results</div>
+  <div class="paneBody">
+    {% if not results %}
+      {# A legitimate business outcome, not an error. The replay engine must
+         report this as MEMBER_NOT_FOUND, never as a crash or a failed
+         checkpoint. Phrased the way these apps phrase it. #}
+      <div class="notice" role="alert">No records found matching your search criteria.</div>
+      <p><a href="/t/{{ tenant.slug }}/members">Return to {{ tenant.member_search_heading }}</a></p>
+    {% else %}
+      <table class="grid">
+        <tr>
+          <th>{{ tenant.member_id_label }}</th>
+          <th>Name</th>
+          <th>Branch</th>
+          <th>Status</th>
+        </tr>
+        {% for m in results %}
+        <tr>
+          <td><a href="/t/{{ tenant.slug }}/members/{{ m.member_id }}">{{ m.member_id }}</a></td>
+          <td>{{ m.full_name }}</td>
+          <td>{{ m.branch }}</td>
+          <td>{{ m.status }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      <p style="margin-top:10px"><a href="/t/{{ tenant.slug }}/members">New Search</a></p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
