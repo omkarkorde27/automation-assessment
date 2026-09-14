@@ -1,0 +1,333 @@
+{
+  "url": "http://127.0.0.1:8800/t/demo-cu/",
+  "title": "Demo Credit Union - Meridian Core",
+  "nodes": [
+    {
+      "node_id": "nav:n1",
+      "role": "link",
+      "name": "Home",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 25.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.027777777777777776,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Servicing",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "nav:n2",
+      "role": "link",
+      "name": "Member Search",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 53.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.058888888888888886,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Home",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "nav:n3",
+      "role": "link",
+      "name": "Sign Out",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 81.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.09,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Member Search",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n1",
+      "role": "cell",
+      "name": "Member ID",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 216.0,
+        "y": 103.0,
+        "w": 83.203125,
+        "h": 33.0,
+        "nx": 0.02295684113865932,
+        "ny": 0.11444444444444445,
+        "nw": 0.07640323691460055,
+        "nh": 0.03666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "Member ID",
+        "col_header": "",
+        "section_label": "Member Search",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n2",
+      "role": "textbox",
+      "name": "",
+      "value": "12345",
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": true
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 309.203125,
+        "y": 109.0,
+        "w": 153.0,
+        "h": 21.0,
+        "nx": 0.1085428145087236,
+        "ny": 0.12111111111111111,
+        "nw": 0.14049586776859505,
+        "nh": 0.023333333333333334
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Member ID",
+        "row_text": "Member ID",
+        "col_header": "",
+        "section_label": "Member Search",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "input",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n3",
+      "role": "button",
+      "name": "Search",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 480.203125,
+        "y": 107.0,
+        "w": 65.53125,
+        "h": 25.0,
+        "nx": 0.26556760789715333,
+        "ny": 0.11888888888888889,
+        "nw": 0.060175619834710745,
+        "nh": 0.027777777777777776
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Member ID",
+        "row_text": "Member ID",
+        "col_header": "",
+        "section_label": "Member Search",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "input",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n4",
+      "role": "cell",
+      "name": "<redacted>",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 216.0,
+        "y": 138.0,
+        "w": 83.203125,
+        "h": 29.0,
+        "nx": 0.02295684113865932,
+        "ny": 0.15333333333333332,
+        "nw": 0.07640323691460055,
+        "nh": 0.03222222222222222
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "<redacted>",
+        "col_header": "Member ID",
+        "section_label": "Member Search",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": true
+    },
+    {
+      "node_id": "content:n5",
+      "role": "textbox",
+      "name": "",
+      "value": "",
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 309.203125,
+        "y": 142.0,
+        "w": 153.0,
+        "h": 21.0,
+        "nx": 0.1085428145087236,
+        "ny": 0.15777777777777777,
+        "nw": 0.14049586776859505,
+        "nh": 0.023333333333333334
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "<redacted>",
+        "col_header": "",
+        "section_label": "Member Search",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "input",
+      "sensitive": false
+    }
+  ],
+  "frame_paths": [
+    [],
+    [
+      "nav"
+    ],
+    [
+      "content"
+    ]
+  ],
+  "frame_urls": {
+    "": "http://127.0.0.1:8800/t/demo-cu/",
+    "nav": "http://127.0.0.1:8800/t/demo-cu/nav",
+    "content": "http://127.0.0.1:8800/t/demo-cu/members"
+  },
+  "captured_at": "2026-09-14T15:00:25.585732Z"
+}

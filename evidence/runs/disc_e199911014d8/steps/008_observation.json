@@ -225,8 +225,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "Dana Whitfield",
-        "row_text": "Name Dana Whitfield",
+        "row_label": "<redacted>",
+        "row_text": "Name <redacted>",
         "col_header": "Member ID",
         "section_label": "Review the request. Opening a sub-account cannot be undone.",
         "nearest_heading": "",
@@ -239,7 +239,7 @@
     {
       "node_id": "content:n4",
       "role": "cell",
-      "name": "Dana Whitfield",
+      "name": "<redacted>",
       "value": null,
       "states": {
         "visible": true,
@@ -265,7 +265,7 @@
       "anchors": {
         "label": "",
         "row_label": "Name",
-        "row_text": "Name Dana Whitfield",
+        "row_text": "Name <redacted>",
         "col_header": "12345",
         "section_label": "Review the request. Opening a sub-account cannot be undone.",
         "nearest_heading": "",
@@ -273,7 +273,7 @@
         "dialog_label": ""
       },
       "tag": "td",
-      "sensitive": false
+      "sensitive": true
     },
     {
       "node_id": "content:n5",
@@ -434,7 +434,7 @@
     {
       "node_id": "content:n9",
       "role": "cell",
-      "name": "Nickname",
+      "name": "<redacted>",
       "value": null,
       "states": {
         "visible": true,
@@ -459,8 +459,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "(none)",
-        "row_text": "Nickname (none)",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> <redacted>",
         "col_header": "Member ID",
         "section_label": "Review the request. Opening a sub-account cannot be undone.",
         "nearest_heading": "",
@@ -468,12 +468,12 @@
         "dialog_label": ""
       },
       "tag": "td",
-      "sensitive": false
+      "sensitive": true
     },
     {
       "node_id": "content:n10",
       "role": "cell",
-      "name": "(none)",
+      "name": "<redacted>",
       "value": null,
       "states": {
         "visible": true,
@@ -498,16 +498,16 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "Nickname",
-        "row_text": "Nickname (none)",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> <redacted>",
         "col_header": "12345",
         "section_label": "Review the request. Opening a sub-account cannot be undone.",
         "nearest_heading": "",
-        "preceding_text": "Nickname",
+        "preceding_text": "<redacted>",
         "dialog_label": ""
       },
       "tag": "td",
-      "sensitive": false
+      "sensitive": true
     },
     {
       "node_id": "content:n11",

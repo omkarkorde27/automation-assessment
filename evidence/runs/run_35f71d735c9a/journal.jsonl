@@ -1,0 +1,30 @@
+{"kind": "profile.specialized", "at": "2026-09-14T15:00:30.805098+00:00", "capability": "member.lookup_balance@1.0.0", "tenant": "valley-cu", "lineage": ["meridian-core@4.2", "valley-cu@1"], "profile_hash": "sha256:cbe3d940e6a483e0ca97caa9d32dc8a3", "locator_overrides": ["member_search_link", "member_id_input"], "param_defaults": {}, "recoveries_inherited": ["wait_out_spinner", "valley_terms_interstitial"], "unused_overrides": []}
+{"kind": "session.opening_app", "at": "2026-09-14T15:00:31.251355+00:00", "url": "http://127.0.0.1:8800/t/valley-cu"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:31.251654+00:00", "action": "navigate", "target": "http://127.0.0.1:8800/t/valley-cu/", "node": "", "claimed_risk": null, "derived_risk": "navigate", "mismatch": false}
+{"kind": "session.expired", "at": "2026-09-14T15:00:31.345183+00:00", "detector": "(url matches //login/ in frame content OR alert matching /(?i)session has expired/ is present)"}
+{"kind": "session.reauth_attempt", "at": "2026-09-14T15:00:31.345343+00:00", "attempt": 1}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:31.345456+00:00", "action": "navigate", "target": "http://127.0.0.1:8800/t/valley-cu/", "node": "", "claimed_risk": "navigate", "derived_risk": "navigate", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:31.406208+00:00", "action": "fill", "target": "login_user_field", "node": "textbox \"User ID\"", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:31.482153+00:00", "action": "fill", "target": "login_password_field", "node": "textbox \"Password\"", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:31.519617+00:00", "action": "click", "target": "login_submit_button", "node": "button \"Sign In\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "session.reauth_ok", "at": "2026-09-14T15:00:31.551550+00:00", "attempt": 1}
+{"kind": "run.started", "at": "2026-09-14T15:00:31.552075+00:00", "run_id": "run_35f71d735c9a", "capability": "member.lookup_balance@1.0.0", "tenant": "valley-cu", "profile": ["meridian-core@4.2", "valley-cu@1"], "profile_hash": "sha256:cbe3d940e6a483e0ca97caa9d32dc8a3"}
+{"kind": "preflight.ok", "at": "2026-09-14T15:00:31.552318+00:00", "conditions": 12}
+{"kind": "step.started", "at": "2026-09-14T15:00:31.569581+00:00", "step": "s1", "intent": "Open the Member Search screen, the standard entry point for looking up a member", "action": "click", "risk": "submit_reversible"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:31.586776+00:00", "action": "click", "target": "member_search_link", "node": "link \"Account Holder Lookup\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:31.612429+00:00", "step": "s1", "resolved": "nav:n2 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-14T15:00:31.630360+00:00", "step": "s1", "pass_no": 1}
+{"kind": "step.started", "at": "2026-09-14T15:00:31.723770+00:00", "step": "s2", "intent": "Enter the member id whose savings balance is being requested", "action": "fill", "risk": "input"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:31.740620+00:00", "action": "fill", "target": "member_id_input", "node": "textbox (in row 'Account Holder #')", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:31.768062+00:00", "step": "s2", "resolved": "content:n2 via anchor_relative[0] score=0.80", "degraded": false}
+{"kind": "step.started", "at": "2026-09-14T15:00:31.849316+00:00", "step": "s3", "intent": "Run the lookup to retrieve the member record and their savings balance", "action": "click", "risk": "submit_reversible"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:31.865637+00:00", "action": "click", "target": "search_button", "node": "button \"Search\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:31.886939+00:00", "step": "s3", "resolved": "content:n3 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-14T15:00:31.905944+00:00", "step": "s3", "pass_no": 1}
+{"kind": "step.started", "at": "2026-09-14T15:00:31.981417+00:00", "step": "s4", "intent": "Open the matched member's record to view their account balances", "action": "click", "risk": "navigate"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:31.998623+00:00", "action": "click", "target": "search_results_link", "node": "link \"12345\"", "claimed_risk": "navigate", "derived_risk": "navigate", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:32.030498+00:00", "step": "s4", "resolved": "content:n6 via role_name_pattern[0] score=0.90", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-14T15:00:32.052042+00:00", "step": "s4", "pass_no": 1}
+{"kind": "extraction.ok", "at": "2026-09-14T15:00:32.149446+00:00", "output": "savings_balance", "value": "4210.75", "redaction": "none", "resolved": "content:n19 via anchor_relative[0] score=0.80", "degraded": false}
+{"kind": "extraction.ok", "at": "2026-09-14T15:00:32.169390+00:00", "output": "member_name", "value": "<redacted>", "redaction": "mask", "resolved": "content:n4 via anchor_relative[0] score=0.80", "degraded": false}
+{"kind": "run.finished", "at": "2026-09-14T15:00:32.191379+00:00", "status": "success", "outputs": ["member_name", "savings_balance"]}

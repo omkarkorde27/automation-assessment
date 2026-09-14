@@ -1,0 +1,49 @@
+{"kind": "profile.specialized", "at": "2026-09-14T15:00:34.213880+00:00", "capability": "member.open_subaccount@1.0.0", "tenant": "demo-cu", "lineage": ["meridian-core@4.2", "demo-cu@1"], "profile_hash": "sha256:e316c87a3a7da6888228c68acc148c2b", "locator_overrides": [], "param_defaults": {}, "recoveries_inherited": ["dismiss_marketing_interstitial", "wait_out_spinner"], "unused_overrides": []}
+{"kind": "session.opening_app", "at": "2026-09-14T15:00:34.654850+00:00", "url": "http://127.0.0.1:8800/t/demo-cu"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:34.655204+00:00", "action": "navigate", "target": "http://127.0.0.1:8800/t/demo-cu/", "node": "", "claimed_risk": null, "derived_risk": "navigate", "mismatch": false}
+{"kind": "session.expired", "at": "2026-09-14T15:00:34.729311+00:00", "detector": "(url matches //login/ in frame content OR alert matching /(?i)session has expired/ is present)"}
+{"kind": "session.reauth_attempt", "at": "2026-09-14T15:00:34.729468+00:00", "attempt": 1}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:34.729569+00:00", "action": "navigate", "target": "http://127.0.0.1:8800/t/demo-cu/", "node": "", "claimed_risk": "navigate", "derived_risk": "navigate", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:34.776567+00:00", "action": "fill", "target": "login_user_field", "node": "textbox \"User ID\"", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:34.851584+00:00", "action": "fill", "target": "login_password_field", "node": "textbox \"Password\"", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:34.887168+00:00", "action": "click", "target": "login_submit_button", "node": "button \"Sign In\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "session.reauth_ok", "at": "2026-09-14T15:00:34.917624+00:00", "attempt": 1}
+{"kind": "run.started", "at": "2026-09-14T15:00:34.918060+00:00", "run_id": "run_7a30a00f0a27", "capability": "member.open_subaccount@1.0.0", "tenant": "demo-cu", "profile": ["meridian-core@4.2", "demo-cu@1"], "profile_hash": "sha256:e316c87a3a7da6888228c68acc148c2b"}
+{"kind": "preflight.ok", "at": "2026-09-14T15:00:34.918379+00:00", "conditions": 14}
+{"kind": "policy.irreversible_authorized", "at": "2026-09-14T15:00:34.918463+00:00", "capability": "member.open_subaccount@1.0.0", "approval": "approved", "steps": ["s9"]}
+{"kind": "step.started", "at": "2026-09-14T15:00:34.935096+00:00", "step": "s1", "intent": "Open Member Search to locate the member whose sub-account we need to open", "action": "click", "risk": "submit_reversible"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:34.951374+00:00", "action": "click", "target": "member_search_link", "node": "link \"Member Search\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:34.975440+00:00", "step": "s1", "resolved": "nav:n2 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-14T15:00:34.992013+00:00", "step": "s1", "pass_no": 1}
+{"kind": "step.started", "at": "2026-09-14T15:00:35.093381+00:00", "step": "s2", "intent": "Enter the member id so the search finds the correct member", "action": "fill", "risk": "input"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:35.110673+00:00", "action": "fill", "target": "member_id_input", "node": "textbox (in row 'Member ID')", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:35.138647+00:00", "step": "s2", "resolved": "content:n2 via anchor_relative[0] score=0.80", "degraded": false}
+{"kind": "step.started", "at": "2026-09-14T15:00:35.216742+00:00", "step": "s3", "intent": "Run the search to open the member's record", "action": "click", "risk": "submit_reversible"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:35.233041+00:00", "action": "click", "target": "search_button", "node": "button \"Search\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:35.257715+00:00", "step": "s3", "resolved": "content:n3 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-14T15:00:35.275969+00:00", "step": "s3", "pass_no": 1}
+{"kind": "step.started", "at": "2026-09-14T15:00:35.348394+00:00", "step": "s4", "intent": "Open the matched member's profile to access sub-account actions", "action": "click", "risk": "navigate"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:35.365023+00:00", "action": "click", "target": "search_results_link", "node": "link \"12345\"", "claimed_risk": "navigate", "derived_risk": "navigate", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:35.396696+00:00", "step": "s4", "resolved": "content:n6 via role_name_pattern[0] score=0.90", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-14T15:00:35.420094+00:00", "step": "s4", "pass_no": 1}
+{"kind": "step.started", "at": "2026-09-14T15:00:35.494592+00:00", "step": "s5", "intent": "Start the sub-account opening flow for this member", "action": "click", "risk": "navigate"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:35.516207+00:00", "action": "click", "target": "open_sub_account_link", "node": "link \"Open Sub-Account\"", "claimed_risk": "navigate", "derived_risk": "navigate", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:35.547281+00:00", "step": "s5", "resolved": "content:n25 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-14T15:00:35.565752+00:00", "step": "s5", "pass_no": 1}
+{"kind": "step.started", "at": "2026-09-14T15:00:35.640765+00:00", "step": "s6", "intent": "Select the requested product type for the new sub-account", "action": "select_option", "risk": "input"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:35.660494+00:00", "action": "select_option", "target": "product_code_select", "node": "combobox \"Product Code\" = 'SAV - Regular Savings'", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:35.712826+00:00", "step": "s6", "resolved": "content:n4 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "step.started", "at": "2026-09-14T15:00:35.799607+00:00", "step": "s7", "intent": "Enter the requested opening deposit amount for the new account", "action": "fill", "risk": "input"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:35.817935+00:00", "action": "fill", "target": "initial_deposit_input", "node": "textbox (in row 'Initial Deposit')", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:35.846946+00:00", "step": "s7", "resolved": "content:n7 via anchor_relative[0] score=0.80", "degraded": false}
+{"kind": "step.started", "at": "2026-09-14T15:00:35.936170+00:00", "step": "s8", "intent": "Proceed to the review step of the sub-account opening", "action": "click", "risk": "submit_reversible"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:35.954890+00:00", "action": "click", "target": "continue_button", "node": "button \"Continue\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:35.982078+00:00", "step": "s8", "resolved": "content:n11 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-14T15:00:36.000362+00:00", "step": "s8", "pass_no": 1}
+{"kind": "step.started", "at": "2026-09-14T15:00:36.081875+00:00", "step": "s9", "intent": "Confirm the sub-account opening so the new account is created and its number is issued", "action": "click", "risk": "submit_irreversible"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:36.101763+00:00", "action": "click", "target": "confirm_and_open_account_button", "node": "button \"Confirm and Open Account\"", "claimed_risk": "submit_irreversible", "derived_risk": "submit_irreversible", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:36.128112+00:00", "step": "s9", "resolved": "content:n11 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-14T15:00:36.146341+00:00", "step": "s9", "pass_no": 1}
+{"kind": "extraction.ok", "at": "2026-09-14T15:00:36.238014+00:00", "output": "new_account_number", "value": "*****0001", "redaction": "last4", "resolved": "content:n3 via anchor_relative[0] score=0.80", "degraded": false}
+{"kind": "extraction.ok", "at": "2026-09-14T15:00:36.253913+00:00", "output": "opening_balance", "value": "50.00", "redaction": "none", "resolved": "content:n9 via role_ordinal[0] score=0.50", "degraded": false}
+{"kind": "run.finished", "at": "2026-09-14T15:00:36.271442+00:00", "status": "success", "outputs": ["new_account_number", "opening_balance"]}

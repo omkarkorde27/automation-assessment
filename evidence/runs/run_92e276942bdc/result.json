@@ -1,0 +1,19 @@
+{
+  "status": "escalated",
+  "ok": false,
+  "capability_ref": "member.open_subaccount@1.0.0",
+  "tenant": "demo-cu",
+  "profile_hash": "sha256:e316c87a3a7da6888228c68acc148c2b",
+  "run_id": "run_92e276942bdc",
+  "started_at": "2026-09-14T15:00:33.382813+00:00",
+  "duration_ms": 0,
+  "evidence_ref": "",
+  "resolution_summary": {},
+  "degraded_count": 0,
+  "intervention_id": null,
+  "steps": [],
+  "reason_class": "IRREVERSIBLE_NOT_AUTHORIZED",
+  "human_message": "member.open_subaccount@1.0.0 performs 1 irreversible step(s) (s9) and the capability is 'draft', not 'approved' and the caller did not pass confirm_irreversible=True. An unattended agent committing a transaction on a capability nobody reviewed, or on a call nobody meant to make, is the failure this gate exists for. Approve the artifact and re-invoke with explicit confirmation.",
+  "at_step": "s9",
+  "resume_token": null
+}

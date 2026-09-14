@@ -186,8 +186,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "200050001",
-        "row_text": "New Account Number 200050001",
+        "row_label": "<redacted>",
+        "row_text": "New Account Number <redacted>",
         "col_header": "",
         "section_label": "Sub-account opened successfully.",
         "nearest_heading": "",
@@ -200,7 +200,7 @@
     {
       "node_id": "content:n3",
       "role": "cell",
-      "name": "200050001",
+      "name": "<redacted>",
       "value": null,
       "states": {
         "visible": true,
@@ -226,7 +226,7 @@
       "anchors": {
         "label": "",
         "row_label": "New Account Number",
-        "row_text": "New Account Number 200050001",
+        "row_text": "New Account Number <redacted>",
         "col_header": "",
         "section_label": "Sub-account opened successfully.",
         "nearest_heading": "",
@@ -234,7 +234,7 @@
         "dialog_label": ""
       },
       "tag": "td",
-      "sensitive": false
+      "sensitive": true
     },
     {
       "node_id": "content:n4",
@@ -305,7 +305,7 @@
         "label": "",
         "row_label": "Member ID",
         "row_text": "Member ID 12345",
-        "col_header": "200050001",
+        "col_header": "<redacted>",
         "section_label": "Sub-account opened successfully.",
         "nearest_heading": "",
         "preceding_text": "Member ID",
@@ -383,7 +383,7 @@
         "label": "",
         "row_label": "Product Code",
         "row_text": "Product Code HSA",
-        "col_header": "200050001",
+        "col_header": "<redacted>",
         "section_label": "Sub-account opened successfully.",
         "nearest_heading": "",
         "preceding_text": "Product Code",
@@ -461,7 +461,7 @@
         "label": "",
         "row_label": "Opening Balance",
         "row_text": "Opening Balance $60.00",
-        "col_header": "200050001",
+        "col_header": "<redacted>",
         "section_label": "Sub-account opened successfully.",
         "nearest_heading": "",
         "preceding_text": "Opening Balance",
@@ -539,7 +539,7 @@
         "label": "",
         "row_label": "Opened",
         "row_text": "Opened 2026-09-13T23:32:59+00:00",
-        "col_header": "200050001",
+        "col_header": "<redacted>",
         "section_label": "Sub-account opened successfully.",
         "nearest_heading": "",
         "preceding_text": "Opened",

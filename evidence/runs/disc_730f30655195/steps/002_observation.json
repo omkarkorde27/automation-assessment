@@ -239,7 +239,7 @@
     {
       "node_id": "content:n4",
       "role": "cell",
-      "name": "Last Name",
+      "name": "<redacted>",
       "value": null,
       "states": {
         "visible": true,
@@ -265,7 +265,7 @@
       "anchors": {
         "label": "",
         "row_label": "",
-        "row_text": "Last Name",
+        "row_text": "<redacted>",
         "col_header": "Member ID",
         "section_label": "Member Search",
         "nearest_heading": "",
@@ -273,7 +273,7 @@
         "dialog_label": ""
       },
       "tag": "td",
-      "sensitive": false
+      "sensitive": true
     },
     {
       "node_id": "content:n5",
@@ -303,8 +303,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "Last Name",
-        "row_text": "Last Name",
+        "row_label": "<redacted>",
+        "row_text": "<redacted>",
         "col_header": "",
         "section_label": "Member Search",
         "nearest_heading": "",

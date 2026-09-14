@@ -303,8 +303,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "Dana Whitfield",
-        "row_text": "12345 Dana Whitfield Riverside Active",
+        "row_label": "<redacted>",
+        "row_text": "12345 <redacted> Riverside Active",
         "col_header": "Member ID",
         "section_label": "Search Results",
         "nearest_heading": "",
@@ -342,8 +342,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "Dana Whitfield",
-        "row_text": "12345 Dana Whitfield Riverside Active",
+        "row_label": "<redacted>",
+        "row_text": "12345 <redacted> Riverside Active",
         "col_header": "Member ID",
         "section_label": "Search Results",
         "nearest_heading": "",
@@ -356,7 +356,7 @@
     {
       "node_id": "content:n7",
       "role": "cell",
-      "name": "Dana Whitfield",
+      "name": "<redacted>",
       "value": null,
       "states": {
         "visible": true,
@@ -382,7 +382,7 @@
       "anchors": {
         "label": "",
         "row_label": "Riverside",
-        "row_text": "12345 Dana Whitfield Riverside Active",
+        "row_text": "12345 <redacted> Riverside Active",
         "col_header": "Name",
         "section_label": "Search Results",
         "nearest_heading": "",
@@ -390,7 +390,7 @@
         "dialog_label": ""
       },
       "tag": "td",
-      "sensitive": false
+      "sensitive": true
     },
     {
       "node_id": "content:n8",
@@ -420,12 +420,12 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "Dana Whitfield",
-        "row_text": "12345 Dana Whitfield Riverside Active",
+        "row_label": "<redacted>",
+        "row_text": "12345 <redacted> Riverside Active",
         "col_header": "Branch",
         "section_label": "Search Results",
         "nearest_heading": "",
-        "preceding_text": "Dana Whitfield",
+        "preceding_text": "<redacted>",
         "dialog_label": ""
       },
       "tag": "td",
@@ -459,8 +459,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "Dana Whitfield",
-        "row_text": "12345 Dana Whitfield Riverside Active",
+        "row_label": "<redacted>",
+        "row_text": "12345 <redacted> Riverside Active",
         "col_header": "Status",
         "section_label": "Search Results",
         "nearest_heading": "",

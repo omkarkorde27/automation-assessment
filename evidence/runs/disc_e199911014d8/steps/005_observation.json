@@ -150,7 +150,7 @@
         "row_label": "",
         "row_text": "Product Code SAV - Regular Savings SAV2 - Premium Savings HSA - Health Savings VAC - Vacation Club",
         "col_header": "",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "",
         "dialog_label": ""
@@ -189,7 +189,7 @@
         "row_label": "",
         "row_text": "Product Code SAV - Regular Savings SAV2 - Premium Savings HSA - Health Savings VAC - Vacation Club",
         "col_header": "",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "",
         "dialog_label": ""
@@ -228,7 +228,7 @@
         "row_label": "Product Code",
         "row_text": "Product Code SAV - Regular Savings SAV2 - Premium Savings HSA - Health Savings VAC - Vacation Club",
         "col_header": "",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "Product Code",
         "dialog_label": ""
@@ -267,7 +267,7 @@
         "row_label": "Product Code",
         "row_text": "Product Code SAV - Regular Savings SAV2 - Premium Savings HSA - Health Savings VAC - Vacation Club",
         "col_header": "",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "",
         "dialog_label": ""
@@ -306,7 +306,7 @@
         "row_label": "",
         "row_text": "Initial Deposit (minimum $25.00)",
         "col_header": "Product Code",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "",
         "dialog_label": ""
@@ -345,7 +345,7 @@
         "row_label": "Initial Deposit",
         "row_text": "Initial Deposit (minimum $25.00)",
         "col_header": "SAV - Regular Savings SAV2 - Premium Savings HSA - Health Savings VAC - Vacation Club",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "Initial Deposit",
         "dialog_label": ""
@@ -384,7 +384,7 @@
         "row_label": "Initial Deposit",
         "row_text": "Initial Deposit (minimum $25.00)",
         "col_header": "SAV - Regular Savings SAV2 - Premium Savings HSA - Health Savings VAC - Vacation Club",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "",
         "dialog_label": ""
@@ -395,7 +395,7 @@
     {
       "node_id": "content:n8",
       "role": "cell",
-      "name": "Nickname",
+      "name": "<redacted>",
       "value": null,
       "states": {
         "visible": true,
@@ -421,15 +421,15 @@
       "anchors": {
         "label": "",
         "row_label": "",
-        "row_text": "Nickname",
+        "row_text": "<redacted>",
         "col_header": "Product Code",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "",
         "dialog_label": ""
       },
       "tag": "td",
-      "sensitive": false
+      "sensitive": true
     },
     {
       "node_id": "content:n9",
@@ -459,10 +459,10 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "Nickname",
-        "row_text": "Nickname",
+        "row_label": "<redacted>",
+        "row_text": "<redacted>",
         "col_header": "SAV - Regular Savings SAV2 - Premium Savings HSA - Health Savings VAC - Vacation Club",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "",
         "dialog_label": ""
@@ -501,7 +501,7 @@
         "row_label": "",
         "row_text": "Cancel",
         "col_header": "SAV - Regular Savings SAV2 - Premium Savings HSA - Health Savings VAC - Vacation Club",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "",
         "dialog_label": ""
@@ -540,7 +540,7 @@
         "row_label": "",
         "row_text": "Cancel",
         "col_header": "SAV - Regular Savings SAV2 - Premium Savings HSA - Health Savings VAC - Vacation Club",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "",
         "dialog_label": ""
@@ -579,7 +579,7 @@
         "row_label": "",
         "row_text": "Cancel",
         "col_header": "SAV - Regular Savings SAV2 - Premium Savings HSA - Health Savings VAC - Vacation Club",
-        "section_label": "Open Sub-Account — Dana Whitfield (12345)",
+        "section_label": "Open Sub-Account — <redacted> (12345)",
         "nearest_heading": "",
         "preceding_text": "",
         "dialog_label": ""

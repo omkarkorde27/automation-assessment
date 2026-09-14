@@ -225,8 +225,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "Dana Whitfield",
-        "row_text": "Name Dana Whitfield",
+        "row_label": "<redacted>",
+        "row_text": "Name <redacted>",
         "col_header": "Member ID",
         "section_label": "Member Detail",
         "nearest_heading": "",
@@ -239,7 +239,7 @@
     {
       "node_id": "content:n4",
       "role": "cell",
-      "name": "Dana Whitfield",
+      "name": "<redacted>",
       "value": null,
       "states": {
         "visible": true,
@@ -265,7 +265,7 @@
       "anchors": {
         "label": "",
         "row_label": "Name",
-        "row_text": "Name Dana Whitfield",
+        "row_text": "Name <redacted>",
         "col_header": "12345",
         "section_label": "Member Detail",
         "nearest_heading": "",
@@ -273,7 +273,7 @@
         "dialog_label": ""
       },
       "tag": "td",
-      "sensitive": false
+      "sensitive": true
     },
     {
       "node_id": "content:n5",
@@ -746,7 +746,7 @@
     {
       "node_id": "content:n17",
       "role": "cell",
-      "name": "100045218",
+      "name": "<redacted>",
       "value": null,
       "states": {
         "visible": true,
@@ -772,7 +772,7 @@
       "anchors": {
         "label": "",
         "row_label": "Savings",
-        "row_text": "100045218 Savings $4,210.75 Open",
+        "row_text": "<redacted> Savings $4,210.75 Open",
         "col_header": "Account Number",
         "section_label": "Accounts",
         "nearest_heading": "",
@@ -780,7 +780,7 @@
         "dialog_label": ""
       },
       "tag": "td",
-      "sensitive": false
+      "sensitive": true
     },
     {
       "node_id": "content:n18",
@@ -810,12 +810,12 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "100045218",
-        "row_text": "100045218 Savings $4,210.75 Open",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Savings $4,210.75 Open",
         "col_header": "Type",
         "section_label": "Accounts",
         "nearest_heading": "",
-        "preceding_text": "100045218",
+        "preceding_text": "<redacted>",
         "dialog_label": ""
       },
       "tag": "td",
@@ -849,8 +849,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "100045218",
-        "row_text": "100045218 Savings $4,210.75 Open",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Savings $4,210.75 Open",
         "col_header": "Balance",
         "section_label": "Accounts",
         "nearest_heading": "",
@@ -888,8 +888,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "100045218",
-        "row_text": "100045218 Savings $4,210.75 Open",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Savings $4,210.75 Open",
         "col_header": "Status",
         "section_label": "Accounts",
         "nearest_heading": "",
@@ -902,7 +902,7 @@
     {
       "node_id": "content:n21",
       "role": "cell",
-      "name": "100045219",
+      "name": "<redacted>",
       "value": null,
       "states": {
         "visible": true,
@@ -928,7 +928,7 @@
       "anchors": {
         "label": "",
         "row_label": "Checking",
-        "row_text": "100045219 Checking $812.30 Open",
+        "row_text": "<redacted> Checking $812.30 Open",
         "col_header": "Account Number",
         "section_label": "Accounts",
         "nearest_heading": "",
@@ -936,7 +936,7 @@
         "dialog_label": ""
       },
       "tag": "td",
-      "sensitive": false
+      "sensitive": true
     },
     {
       "node_id": "content:n22",
@@ -966,12 +966,12 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "100045219",
-        "row_text": "100045219 Checking $812.30 Open",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Checking $812.30 Open",
         "col_header": "Type",
         "section_label": "Accounts",
         "nearest_heading": "",
-        "preceding_text": "100045219",
+        "preceding_text": "<redacted>",
         "dialog_label": ""
       },
       "tag": "td",
@@ -1005,8 +1005,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "100045219",
-        "row_text": "100045219 Checking $812.30 Open",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Checking $812.30 Open",
         "col_header": "Balance",
         "section_label": "Accounts",
         "nearest_heading": "",
@@ -1044,8 +1044,8 @@
       },
       "anchors": {
         "label": "",
-        "row_label": "100045219",
-        "row_text": "100045219 Checking $812.30 Open",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Checking $812.30 Open",
         "col_header": "Status",
         "section_label": "Accounts",
         "nearest_heading": "",

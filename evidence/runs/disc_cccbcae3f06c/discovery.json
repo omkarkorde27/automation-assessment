@@ -6,8 +6,8 @@
   "profile": "demo-cu@1",
   "profile_hash": "sha256:aa73fb4579be3b28971bf3c81479cb75",
   "status": "finished",
-  "stop_reason": "The Member Detail screen for member 12345 (Dana Whitfield) is displayed with the Accounts table showing the Savings account 100045218 at $4,210.75, which answers the balance request; the earlier 99999 search produced the \"No records found matching your search criteria.\" alert, now declared as the MEMBER_NOT_FOUND outcome.",
-  "finish_reason": "The Member Detail screen for member 12345 (Dana Whitfield) is displayed with the Accounts table showing the Savings account 100045218 at $4,210.75, which answers the balance request; the earlier 99999 search produced the \"No records found matching your search criteria.\" alert, now declared as the MEMBER_NOT_FOUND outcome.",
+  "stop_reason": "The Member Detail screen for member 12345 (<redacted>) is displayed with the Accounts table showing the Savings account <redacted> at $4,210.75, which answers the balance request; the earlier 99999 search produced the \"No records found matching your search criteria.\" alert, now declared as the MEMBER_NOT_FOUND outcome.",
+  "finish_reason": "The Member Detail screen for member 12345 (<redacted>) is displayed with the Accounts table showing the Savings account <redacted> at $4,210.75, which answers the balance request; the earlier 99999 search produced the \"No records found matching your search criteria.\" alert, now declared as the MEMBER_NOT_FOUND outcome.",
   "started_at": "2026-09-13T23:56:45.583074+00:00",
   "ended_at": "2026-09-13T23:57:32.515566+00:00",
   "tokens": {
@@ -164,7 +164,7 @@
       "tool": "extract",
       "reason": "Capture the member name so a caller can confirm the balance belongs to the expected member",
       "action": null,
-      "node": "cell \"Dana Whitfield\"",
+      "node": "cell \"<redacted>\"",
       "value_shape": null,
       "param": null,
       "url": null,
@@ -178,7 +178,7 @@
     {
       "index": 11,
       "tool": "finish",
-      "reason": "The Member Detail screen for member 12345 (Dana Whitfield) is displayed with the Accounts table showing the Savings account 100045218 at $4,210.75, which answers the balance request; the earlier 99999 search produced the \"No records found matching your search criteria.\" alert, now declared as the MEMBER_NOT_FOUND outcome.",
+      "reason": "The Member Detail screen for member 12345 (<redacted>) is displayed with the Accounts table showing the Savings account <redacted> at $4,210.75, which answers the balance request; the earlier 99999 search produced the \"No records found matching your search criteria.\" alert, now declared as the MEMBER_NOT_FOUND outcome.",
       "action": null,
       "node": null,
       "value_shape": null,
@@ -207,7 +207,7 @@
     },
     {
       "output": "member_name",
-      "node": "cell \"Dana Whitfield\"",
+      "node": "cell \"<redacted>\"",
       "at_step": 10
     }
   ]

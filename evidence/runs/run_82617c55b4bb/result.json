@@ -1,0 +1,68 @@
+{
+  "status": "success",
+  "ok": true,
+  "capability_ref": "member.lookup_balance@1.0.0",
+  "tenant": "demo-cu",
+  "profile_hash": "sha256:e316c87a3a7da6888228c68acc148c2b",
+  "run_id": "run_82617c55b4bb",
+  "started_at": "2026-09-14T15:00:22.161660+00:00",
+  "duration_ms": 675,
+  "evidence_ref": "",
+  "resolution_summary": {
+    "role_name_exact": 2,
+    "anchor_relative": 1,
+    "role_name_pattern": 1
+  },
+  "degraded_count": 0,
+  "intervention_id": null,
+  "steps": [
+    {
+      "step_id": "s1",
+      "intent": "Open the Member Search screen, the standard entry point for looking up a member",
+      "action": "click",
+      "ok": true,
+      "resolved_by": "role_name_exact",
+      "degraded": false,
+      "duration_ms": 63,
+      "recoveries": [],
+      "note": ""
+    },
+    {
+      "step_id": "s2",
+      "intent": "Enter the member id whose savings balance is being requested",
+      "action": "fill",
+      "ok": true,
+      "resolved_by": "anchor_relative",
+      "degraded": false,
+      "duration_ms": 63,
+      "recoveries": [],
+      "note": ""
+    },
+    {
+      "step_id": "s3",
+      "intent": "Run the lookup to retrieve the member record and their savings balance",
+      "action": "click",
+      "ok": true,
+      "resolved_by": "role_name_exact",
+      "degraded": false,
+      "duration_ms": 59,
+      "recoveries": [],
+      "note": ""
+    },
+    {
+      "step_id": "s4",
+      "intent": "Open the matched member's record to view their account balances",
+      "action": "click",
+      "ok": true,
+      "resolved_by": "role_name_pattern",
+      "degraded": false,
+      "duration_ms": 73,
+      "recoveries": [],
+      "note": ""
+    }
+  ],
+  "outputs": {
+    "savings_balance": "4210.75",
+    "member_name": "<redacted>"
+  }
+}
