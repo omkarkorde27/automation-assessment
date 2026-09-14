@@ -151,7 +151,12 @@ def stage_approved_capabilities(scratch: Path) -> Path:
           f"drafts,\n  and a tool definition is an offer. Approving the read-only one "
           f"here, in a copy.{RESET}\n")
 
-    store.set_approval("member.lookup_balance@1.0.0", ApprovalState.APPROVED,
+    # By id, not by a pinned ref: `cua describe` mints versions, and a demo that
+    # hard-codes @1.0.0 keeps approving the artifact it was written against
+    # rather than the one that is current. That is exactly how this script spent
+    # a run proving a fix had not taken.
+    current = store.load_latest("member.lookup_balance")
+    store.set_approval(current.ref, ApprovalState.APPROVED,
                        reason="approved by the round-trip demo")
 
     after = build_catalog(store.list(), include_drafts=True)

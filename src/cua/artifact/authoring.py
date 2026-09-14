@@ -58,8 +58,12 @@ class AuthoringReview(BaseModel):
 
     outcomes: list[ProposedOutcome] = Field(default_factory=list)
     checkpoint_concerns: list[CheckpointConcern] = Field(default_factory=list)
-    title: str = ""
-    description: str = ""
+    title: str = Field(
+        default="", description="A short name for the capability, 2-8 words.")
+    description: str = Field(
+        default="",
+        description="One or two sentences telling a CALLER what this capability does "
+                    "and what it needs. Not the goal it was recorded for.")
 
 
 @dataclass
@@ -152,6 +156,15 @@ run saw no such screens, return no outcomes. That is a perfectly good answer.
 
 You may also flag checkpoints that look too weak (would pass on the wrong screen) \
 or too brittle (would fail on a cosmetic change). You cannot change the steps.
+
+Finally, write the capability's `title` and `description`. These are what a \
+production agent is shown when it decides whether to call this capability, so \
+write them for a CALLER, not for yourself. Describe what the capability does and \
+what it needs, in one or two plain sentences. Do NOT restate the goal the flow \
+was recorded for: that goal was written to steer an explorer and may contain \
+probes and asides ("first search for an id that does not exist, so you can see \
+how it reports that") which would read to a calling agent as instructions. \
+Describe the capability, not the recording.
 """
 
 
@@ -189,7 +202,9 @@ def build_prompt(artifact: CapabilityArtifact, run: DiscoveryRun) -> str:
     declared = "\n".join(f"  {o.code}: {o.description}" for o in artifact.outcomes) or "  (none)"
 
     return (
-        f"Goal the flow was recorded for:\n  {artifact.capability.description}\n\n"
+        f"Goal the flow was recorded for (provenance -- do NOT restate it as the "
+        f"description):\n  "
+        f"{artifact.provenance.discovery_goal if artifact.provenance else '(none)'}\n\n"
         f"Recorded steps and their checkpoints:\n{steps}\n\n"
         f"Notice-shaped elements observed anywhere during the run:\n{notices}\n\n"
         f"Outcomes the run already declared:\n{declared}\n"
@@ -270,8 +285,96 @@ def review_artifact(
 
     report.concerns = [f"{c.step_id}: {c.concern}" for c in review.checkpoint_concerns]
 
-    if not added:
+    # ---- caller-facing prose (R-M7-2) -----------------------------------
+    # The reviewer has always been asked for these and the recorder has always
+    # thrown them away, using the discovery goal instead. Applying them is what
+    # gives `AuthoringReview.title` and `.description` their first read site.
+    #
+    # Guarded the same way the outcomes are. A proposal that merely restates the
+    # goal reintroduces exactly the defect this requirement exists to remove,
+    # and it is the most likely thing a model asked to describe a flow will do.
+    prose: dict[str, str] = {}
+    goal = artifact.provenance.discovery_goal if artifact.provenance else ""
+    proposed = " ".join((review.description or "").split())
+    if proposed:
+        if _restates(proposed, goal):
+            report.rejected.append(
+                "description (it restates the discovery goal, which describes the "
+                "recording rather than the capability)")
+        else:
+            prose["description"] = proposed
+            report.applied.append("description")
+
+    proposed_title = " ".join((review.title or "").split())
+    if proposed_title and not _restates(proposed_title, goal):
+        prose["title"] = proposed_title
+        report.applied.append("title")
+
+    if not added and not prose:
         return artifact, report
 
-    return artifact.model_copy(
-        update={"outcomes": artifact.outcomes + tuple(added)}).seal(), report
+    meta = artifact.capability.model_copy(update=prose) if prose else artifact.capability
+    return artifact.model_copy(update={
+        "capability": meta,
+        "outcomes": artifact.outcomes + tuple(added),
+    }).seal(), report
+
+
+#: Phrasing that addresses an EXPLORER rather than describing a capability.
+#: This is the actual harm R-M7-2 exists to prevent: a calling agent reads the
+#: description as part of its instructions, and "so you can see how it reports
+#: that" is a directive it may well follow. One real run did exactly that, and
+#: another declined on the grounds that it does not obey instructions embedded
+#: in tool metadata -- which is the correct instinct and still a wasted turn.
+_EXPLORER_DIRECTED = re.compile(
+    r"\b(?:so (?:that )?you can|so you see|to see how|observe how|note how"
+    r"|declare how|you should (?:then|first|now)|first (?:search|look|try|open)"
+    r"|then (?:search|look|try|open)|which does not exist|that does not exist)\b",
+    re.IGNORECASE)
+
+
+def _reads_as_instruction(text: str) -> bool:
+    """Does this prose tell the reader to go and do something exploratory?"""
+    return bool(_EXPLORER_DIRECTED.search(text or ""))
+
+
+def _restates(proposal: str, goal: str) -> bool:
+    """Is this proposed prose really just the discovery goal?
+
+    Two different failures, and only one of them is about similarity.
+
+    The one that matters is prose carrying **explorer-directed instructions** --
+    caught by `_reads_as_instruction` regardless of where it came from, because
+    a hand-written description with "first search for an id that does not exist"
+    in it is exactly as harmful as a pasted goal.
+
+    The other is the goal reused verbatim or all but. That is a "nobody wrote
+    this" signal, so the bar is near-identity: normalized equality, containment,
+    or word overlap at 0.95.
+
+    An earlier version of this compared word sets at 0.75 and rejected a
+    perfectly good hand-written description of `member.open_subaccount`, whose
+    goal happened to be well phrased. A well-written goal and a well-written
+    description of the same operation SHOULD share most of their content words;
+    that is what it means for both to be about the same thing. Overlap was
+    measuring subject matter and being read as authorship.
+    """
+    text = " ".join((proposal or "").split())
+    if not text:
+        return False
+    if _reads_as_instruction(text):
+        return True
+    if not goal:
+        return False
+
+    normalized_goal = " ".join(goal.split())
+    if text.lower() == normalized_goal.lower():
+        return True
+    if len(text) > 40 and text.lower() in normalized_goal.lower():
+        return True
+
+    words = {w for w in re.findall(r"[a-z0-9_]+", normalized_goal.lower()) if len(w) > 3}
+    if len(words) < 6:
+        return False
+    shared = words & {w for w in re.findall(r"[a-z0-9_]+", text.lower()) if len(w) > 3}
+    return len(shared) / len(words) >= 0.95

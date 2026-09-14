@@ -22,6 +22,7 @@ import json
 import pytest
 from typer.testing import CliRunner
 
+from cua.artifact.authoring import _reads_as_instruction, _restates
 from cua.artifact.schema import ApprovalState, CapabilityRisk
 from cua.artifact.store import ArtifactStore
 from cua.catalog import (
@@ -289,3 +290,172 @@ async def test_a_tool_call_that_works_returns_the_typed_output(dispatch):
     assert block["is_error"] is False
     assert body["status"] == "success"
     assert body["outputs"] == {"savings_balance": "4210.75"}
+
+
+# --------------------------------------------------------------------------
+# R-M7-2: a tool description is not a discovery goal
+# --------------------------------------------------------------------------
+
+LOOKUP_GOAL = (
+    "Search for member 99999, which does not exist, so you can see and declare how "
+    "this application reports a member it cannot find. Then search for member "
+    "{member_id} and read their current savings balance.")
+
+
+def with_goal(artifact, goal, description):
+    from cua.artifact.schema import Provenance
+
+    prov = artifact.provenance or Provenance()
+    return artifact.model_copy(update={
+        "capability": artifact.capability.model_copy(update={"description": description}),
+        "provenance": prov.model_copy(update={"discovery_goal": goal}),
+    })
+
+
+def test_a_tool_description_is_not_the_discovery_goal():
+    """The named regression. A goal is written to steer an explorer; a
+    description is read by the agent that will invoke."""
+    assert _restates(LOOKUP_GOAL, LOOKUP_GOAL)
+    assert not _restates(
+        "Look up a credit-union member by their member id and read the current "
+        "balance of their savings account.", LOOKUP_GOAL)
+
+
+def test_explorer_directed_prose_is_refused_however_it_was_written():
+    """Pasting the goal is not the harm -- the instructions inside it are. A
+    hand-written description carrying them is exactly as bad."""
+    assert _restates("Open a sub-account. First search for a member that does not "
+                     "exist so you can see the error.", "")
+    assert _reads_as_instruction("…so you can see how it reports that")
+    assert not _reads_as_instruction(
+        "Open an additional sub-account for an existing member and report the new "
+        "account number the application assigns.")
+
+
+def test_a_well_phrased_goal_does_not_block_a_good_description():
+    """The regression in the guard itself. Comparing word sets at 0.75 rejected a
+    correct hand-written description of `member.open_subaccount`, whose goal was
+    simply well phrased -- measuring subject matter and reading it as authorship."""
+    goal = ("Open a new sub-account for member {member_id} with product code "
+            "{product_code} and an initial deposit of {initial_deposit}.")
+    assert not _restates(
+        "Open an additional sub-account for an existing credit-union member, under a "
+        "given product code and with a given opening deposit, and report the new "
+        "account number the application assigns.", goal)
+
+
+def test_approve_refuses_a_capability_described_by_its_own_goal(tmp_path):
+    """R-M7-2 at the gate. With R-M7-1 -- only approved capabilities are offered
+    -- this means a goal-as-description can never reach a calling agent."""
+    store = ArtifactStore(tmp_path)
+    store.save(with_goal(draft(lookup_balance_artifact()), LOOKUP_GOAL, LOOKUP_GOAL).seal())
+    runner = CliRunner()
+
+    refused = runner.invoke(app, ["approve", "member.lookup_balance",
+                                  "--capabilities-root", str(tmp_path)])
+    assert refused.exit_code == 2
+    assert "describes the RECORDING" in refused.output
+    assert "cua describe" in refused.output
+
+
+def test_approve_refuses_a_capability_with_no_description_at_all(tmp_path):
+    """The recorder now leaves it empty rather than filling it with the goal, so
+    "empty" is the state a fresh recording arrives in."""
+    store = ArtifactStore(tmp_path)
+    store.save(with_goal(draft(lookup_balance_artifact()), LOOKUP_GOAL, "").seal())
+
+    result = CliRunner().invoke(app, ["approve", "member.lookup_balance",
+                                      "--capabilities-root", str(tmp_path)])
+    assert result.exit_code == 2
+    assert "has no description" in result.output
+
+
+def test_describe_mints_a_new_version_and_leaves_the_flow_alone(tmp_path):
+    store = ArtifactStore(tmp_path)
+    original = with_goal(draft(lookup_balance_artifact()), LOOKUP_GOAL, LOOKUP_GOAL).seal()
+    store.save(original)
+
+    result = CliRunner().invoke(app, [
+        "describe", "member.lookup_balance", "--capabilities-root", str(tmp_path),
+        "--title", "Look up a savings balance",
+        "--description", "Look up a member by id and read their savings balance."])
+    assert result.exit_code == 0, result.output
+
+    assert store.versions("member.lookup_balance") == ["1.0.0", "1.1.0"]
+    revised = store.load("member.lookup_balance@1.1.0")
+    assert revised.capability.description.startswith("Look up a member by id")
+    assert revised.verify_hash() and revised.content_hash != original.content_hash
+    # The recording is untouched -- only the contract's prose changed.
+    assert [s.id for s in revised.steps] == [s.id for s in original.steps]
+    assert revised.provenance.discovery_goal == LOOKUP_GOAL
+    assert revised.capability.approval_state is ApprovalState.DRAFT, \
+        "a new contract is a new review"
+
+
+def test_describe_refuses_the_goal_pasted_back_in(tmp_path):
+    store = ArtifactStore(tmp_path)
+    store.save(with_goal(draft(lookup_balance_artifact()), LOOKUP_GOAL, "").seal())
+
+    result = CliRunner().invoke(app, [
+        "describe", "member.lookup_balance", "--capabilities-root", str(tmp_path),
+        "--description", LOOKUP_GOAL])
+    assert result.exit_code == 2
+    assert "restates the discovery goal" in result.output
+    assert store.versions("member.lookup_balance") == ["1.0.0"], "nothing was minted"
+
+
+def test_the_recorder_no_longer_writes_the_goal_as_a_description():
+    """The real fix site. `provenance.discovery_goal` keeps the goal; the
+    description is left for a reviewer to author."""
+    import inspect
+
+    from cua.artifact import recorder
+
+    source = inspect.getsource(recorder)
+    assert "description=goal" not in source
+    assert "discovery_goal=goal" in source, "the goal must still be kept in provenance"
+
+
+# --------------------------------------------------------------------------
+# R-M7-2: one version per capability
+# --------------------------------------------------------------------------
+
+def test_catalog_offers_one_version_per_capability():
+    """Two versions of one capability share a tool NAME. The Messages API rejects
+    duplicate names outright, and `resolve` would otherwise silently pick
+    whichever sorted first -- running an old flow nobody chose."""
+    v1 = approved(lookup_balance_artifact())
+    v2 = approved(lookup_balance_artifact(
+        capability=lookup_balance_artifact().capability.model_copy(
+            update={"version": "1.1.0"})))
+
+    catalog = build_catalog([v1, v2])
+    assert len(catalog.definitions()) == 1
+    assert [e.ref for e in catalog.listing()] == ["member.lookup_balance@1.1.0"]
+    assert catalog.resolve("member_lookup_balance").capability.version == "1.1.0"
+
+
+def test_an_approved_predecessor_outranks_an_unreviewed_new_version():
+    """`cua describe` mints a draft. Until somebody reviews it, the approved
+    version is still what a caller should be given."""
+    base = lookup_balance_artifact()
+    old = approved(base)
+    new = draft(base.model_copy(update={
+        "capability": base.capability.model_copy(update={"version": "2.0.0"})}))
+
+    catalog = build_catalog([old, new])
+    assert catalog.resolve("member_lookup_balance").capability.version == "1.0.0"
+
+
+def test_the_committed_capabilities_are_describable_to_a_caller():
+    """The artifacts this repo actually ships. Both were version-bumped after the
+    round-trip demo caught the model following a description into a wasted
+    replay."""
+    catalog = build_catalog(ArtifactStore("capabilities").list(), include_drafts=True)
+    assert len(catalog.listing()) == 2
+
+    for entry in catalog.listing():
+        meta = entry.artifact.capability
+        assert meta.version == "1.1.0"
+        assert not _restates(meta.description, entry.artifact.provenance.discovery_goal)
+        assert not _reads_as_instruction(entry.artifact.as_tool_definition()["description"])

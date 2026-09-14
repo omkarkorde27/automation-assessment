@@ -85,10 +85,18 @@ the M3 replay engine. Two Sonnet calls, about a cent. It carries both halves —
 and (below the separator) an argument the artifact refuses, coming back as
 `PARAM_INVALID` in 34 ms with no browser navigation.
 
-It also records two things that are true and uncomfortable: the model spends a
-replay on member 99999 because the capability description is the discovery goal
-verbatim, and `member_name` reaches the model redacted. Both are discussed in
-`REPORT.md` section 7.
+The run uses `member.lookup_balance@1.1.0`. Version 1.0.0 shipped the discovery
+goal as its description, and on every run the model read *"Search for member
+99999, which does not exist…"* and spent an entire replay on it before answering
+the question asked. R-M7-2 fixed that and the transcript shows the result: one
+tool call instead of two. Both 1.0.0 artifacts are still on disk; the recording
+in 1.1.0 is byte-for-byte what the Opus run produced, and only the caller-facing
+prose changed.
+
+One thing in it is still uncomfortable and stated rather than hidden:
+`member_name` reaches the model as `<redacted>` while the engine read the real
+name. A tool result is a prompt on the caller's next turn, so it is rendered
+through the declared redaction. See `REPORT.md` section 7.
 
 ## Reading a journal
 

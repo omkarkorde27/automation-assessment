@@ -201,6 +201,83 @@ def catalog_cmd(
         typer.echo("")
 
 
+@app.command("describe")
+def describe_cmd(
+    capability: str = typer.Argument(..., help="Capability id, or id@version."),
+    description: str = typer.Option(..., "--description",
+                                    help="What this capability does, for a CALLER."),
+    title: str = typer.Option("", "--title", help="A short name, 2-8 words."),
+    bump: str = typer.Option("minor", help="major | minor | patch."),
+    capabilities_root: str = typer.Option("capabilities", help="Where artifacts live."),
+) -> None:
+    """Author a capability's caller-facing prose. Mints a NEW version (R-M7-2).
+
+    The description is the single most load-bearing string in the agent-facing
+    interface: it is what a production model reads when it decides whether to
+    call this capability at all. The recorder deliberately leaves it empty,
+    because it knows only what was asked of the explorer -- and a discovery goal
+    can contain probes and asides that read to a calling agent as instructions.
+    One real run followed a goal's "search for member 99999 first" into a wasted
+    replay, and another named it as an embedded instruction it declined to obey.
+
+    This mints a version rather than editing in place because the description is
+    part of the contract a caller depends on. Changing it changes the contract,
+    and the content hash is supposed to notice -- editing the file by hand would
+    look exactly like tampering, which is the one thing the hash exists to make
+    visible. The flow itself is untouched: same steps, same locators, same
+    checkpoints, same recording.
+
+    The new version starts as a DRAFT, whatever its predecessor was. A caller
+    reading a new description is being offered a new contract, and the point of
+    R-M7-1 is that nobody is offered a contract a person has not read.
+    """
+    from .artifact.schema import ApprovalState, CapabilityMeta
+    from .artifact.store import ArtifactStore
+
+    text = " ".join(description.split())
+    if not text:
+        typer.echo("--description cannot be empty.", err=True)
+        raise typer.Exit(2)
+
+    store = ArtifactStore(capabilities_root)
+    artifact = store.resolve_ref(capability)
+    # `provenance` is optional: a hand-authored artifact has none, and one that
+    # does not record a goal cannot have been described by it.
+    goal = artifact.provenance.discovery_goal if artifact.provenance else ""
+
+    from .artifact.authoring import _restates
+    if _restates(text, goal):
+        # The same guard the authoring reviewer's proposal goes through. A human
+        # pasting the goal in is the identical defect arriving by hand.
+        typer.echo(
+            "That description restates the discovery goal, which describes the "
+            "RECORDING rather than the capability.\n"
+            f"  goal: {goal[:120]}...\n"
+            "Write what a caller needs to know: what it does, and what it needs.",
+            err=True)
+        raise typer.Exit(2)
+
+    version = store.next_version(artifact.capability.id, bump)
+    meta: CapabilityMeta = artifact.capability.model_copy(update={
+        "version": version,
+        "description": text,
+        "title": " ".join(title.split()) or artifact.capability.title,
+        "approval_state": ApprovalState.DRAFT,
+    })
+    revised = artifact.model_copy(update={"capability": meta}).seal()
+    store.save(revised)
+
+    typer.echo(f"{artifact.ref} -> {revised.ref}   ({revised.capability.approval_state.value})")
+    typer.echo(f"  title        {revised.capability.title}")
+    typer.echo(f"  description  {revised.capability.description}")
+    typer.echo(f"  hash         {artifact.content_hash[:23]}... -> "
+               f"{revised.content_hash[:23]}...")
+    typer.echo(f"  flow         unchanged: {len(revised.steps)} step(s), "
+               f"{len(revised.outcomes)} outcome(s), recorded from "
+               f"{(revised.provenance.recorded_from_run if revised.provenance else '') or 'n/a'}")
+    typer.echo(f"\n`cua approve {revised.capability.id}` to offer it to callers.")
+
+
 @app.command("approve")
 def approve_cmd(
     capability: str = typer.Argument(..., help="Capability id, or id@version."),
@@ -228,6 +305,29 @@ def approve_cmd(
 
     store = ArtifactStore(capabilities_root)
     artifact = store.resolve_ref(capability)
+
+    if target is ApprovalState.APPROVED:
+        # R-M7-2, enforced at the gate rather than advised in a doc. Combined
+        # with R-M7-1 -- only approved capabilities are offered -- this means a
+        # description that is really a discovery goal can never reach a calling
+        # agent. Checked here rather than in the schema so the defective 1.0.0
+        # artifacts stay loadable as history; they simply cannot be offered.
+        from .artifact.authoring import _restates
+
+        text = " ".join((artifact.capability.description or "").split())
+        goal = artifact.provenance.discovery_goal if artifact.provenance else ""
+        problem = ("has no description" if not text else
+                   "describes the RECORDING, not the capability -- it restates the "
+                   "discovery goal" if _restates(text, goal) else "")
+        if problem:
+            typer.echo(
+                f"{artifact.ref} {problem}.\n"
+                f"A description is what a production model reads when it decides "
+                f"whether to call this capability.\n"
+                f"  cua describe {artifact.capability.id} --description \"...\"",
+                err=True)
+            raise typer.Exit(2)
+
     was = artifact.capability.approval_state.value
     updated = store.set_approval(artifact.ref, target, reason=reason)
 

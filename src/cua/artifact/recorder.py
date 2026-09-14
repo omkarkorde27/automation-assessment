@@ -763,7 +763,18 @@ def record(
         capability=CapabilityMeta(
             id=capability_id, version=version,
             title=title or _title_from(goal),
-            description=goal,
+            # NOT the goal (R-M7-2). A discovery goal is written for the model
+            # that will explore -- it can contain probes, asides and imperatives
+            # aimed at an explorer. A description is read by the agent that will
+            # INVOKE, and one real run followed a goal's "search for member 99999
+            # first" into a wasted replay. The recorder cannot write this field
+            # because it does not know what the capability is FOR; it only knows
+            # what was asked of the explorer. The goal is kept, whole, in
+            # `provenance.discovery_goal`, which is where it was always meant to
+            # live. The authoring reviewer proposes a description, `cua describe`
+            # lets a human author one, and `cua approve` refuses a capability
+            # that still has neither.
+            description="",
             risk_tier=risk_tier,
         ),
         binding=Binding(
@@ -855,11 +866,13 @@ def _title_from(goal: str) -> str:
     is not decoration -- it is the first thing a reviewer reads in the catalog
     and part of what a calling agent is shown.
 
-    *Known limit, stated in REPORT §7:* the description is still the discovery
-    goal verbatim, so a goal that contains exploratory instructions ("search for
-    a member that does not exist, so you can see how it reports that") describes
-    the RECORDING rather than the capability. Naming a capability well from its
-    own transcript is a job for the authoring review pass, not for a slice.
+    Still goal-derived, and that is the honest ceiling of what a slice can do:
+    a title taken from the first sentence of "search for a member that does not
+    exist, so you can see how it reports that" names the RECORDING. The
+    caller-facing prose is `description`, which the recorder now declines to
+    write at all (R-M7-2) -- the authoring reviewer proposes one and `cua
+    describe` lets a human author one. This stays as the reviewer's first
+    handhold in the catalog until then.
     """
     text = " ".join((goal or "").split())
     if not text:
