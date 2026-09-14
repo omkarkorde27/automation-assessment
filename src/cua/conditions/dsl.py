@@ -114,6 +114,9 @@ def node_matches(node: UiNode, match: ElementMatch) -> bool:
             return False
     if match.enabled is not None and node.enabled is not match.enabled:
         return False
+    if match.col_header is not None:
+        if normalize_name(node.anchors.col_header) != normalize_name(match.col_header):
+            return False
     if match.scope is not None:
         # Reuse the locator layer's scope semantics so a condition and a locator
         # never disagree about what "within this row" means.

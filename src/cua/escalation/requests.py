@@ -115,6 +115,17 @@ class InterventionRequest(BaseModel):
     anyway -- so the console can show "failed (CHECKPOINT_FAILED)" rather than
     implying somebody can still rescue it."""
 
+    unsanctioned_change: bool = False
+    """R-M6-4. The screen changed while the operator held the lease, and nothing
+    came through the console to explain it.
+
+    Not an accusation and not a failure: driving the headed browser window
+    directly is a supported escape hatch, and it is how an operator fixes what
+    the action vocabulary cannot express. It is recorded because an evidence
+    pack that shows a screen changing with no action behind it, and does not say
+    so, is quietly incomplete -- R-M4-2's rule about model output, applied to
+    human input. What this flag cannot say is WHAT was done; see the broker."""
+
     status: InterventionStatus = InterventionStatus.OPEN
     resolution: Resolution | None = None
     opened_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

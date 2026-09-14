@@ -44,12 +44,24 @@ class ElementMatch(BaseModel):
     scope: SectionScope | None = None
     enabled: bool | None = None
 
+    col_header: str | None = None
+    """The column this cell sits under, matched case-insensitively.
+
+    A grid cell is identified by its column, and until this existed there was no
+    way to say so: `scope` relations all match a row, a section or a dialog, and
+    the only alternative was to name the whole table -- which masks the columns
+    you meant to leave alone -- or to match the value's shape, which works for an
+    account number and not for a person's name.
+
+    The data was always there (`Anchors.col_header`); nothing could ask for it.
+    """
+
     @model_validator(mode="after")
     def _not_empty(self) -> "ElementMatch":
         if not any(
             v is not None
             for v in (self.role, self.name, self.name_matches, self.value,
-                      self.value_matches, self.scope, self.enabled)
+                      self.value_matches, self.scope, self.enabled, self.col_header)
         ):
             raise ValueError("element match needs at least one criterion")
         return self
@@ -145,6 +157,8 @@ def describe(cond: "Condition") -> str:
             bits.append(f"matching /{e.name_matches}/")
         if e.value_matches:
             bits.append(f"value matching /{e.value_matches}/")
+        if e.col_header:
+            bits.append(f'under column "{e.col_header}"')
         if e.scope:
             bits.append(f"{e.scope.relation} {e.scope.anchor.text or e.scope.anchor.pattern!r}")
         what = " ".join(bits) or "element"

@@ -122,6 +122,23 @@ class _Base:
 @dataclass(frozen=True)
 class Success(_Base):
     outputs: dict[str, Any] = field(default_factory=dict)
+    """What the caller asked for, in full. An agent that requested an account
+    number needs the account number."""
+
+    evidence_outputs: dict[str, Any] = field(default_factory=dict)
+    """The same values as they may be WRITTEN DOWN -- each rendered through its
+    `OutputSpec.redact`, falling back to the profile's
+    `output_redaction_defaults`.
+
+    Two renderings of one value, and the split is the whole of §3.3's claim that
+    "the redaction boundary is persistence, not the return value". Until this
+    field existed the claim was half-true: the journal honoured it and
+    `result.json` did not, so an evidence pack recorded the very number the
+    journal had just masked to its last four digits.
+
+    Populated by the engine, which is the only thing holding both the artifact's
+    output specs and the resolved profile. `to_dict` fails CLOSED when it is
+    absent -- see there."""
 
     status = ReplayStatus.SUCCESS
     ok = True
@@ -201,7 +218,14 @@ ReplayResult = Union[Success, BusinessOutcome, Escalated, Failure]
 
 
 def to_dict(result: ReplayResult) -> dict:
-    """Serializable form, written to evidence/runs/<id>/result.json."""
+    """Serializable form, written to evidence/runs/<id>/result.json.
+
+    This is an EGRESS, and it is the one that was missed: everything else that
+    writes an extracted value goes through the redactor, and this wrote
+    `result.outputs` verbatim into a file that ships with the evidence pack.
+    A `Success` therefore carries two dicts, and this function may only ever
+    reach for the one meant to be written down.
+    """
     base = {
         "status": result.status.value,
         "ok": result.ok,
@@ -231,7 +255,13 @@ def to_dict(result: ReplayResult) -> dict:
         ],
     }
     if isinstance(result, Success):
-        base["outputs"] = result.outputs
+        # Fail closed. A `Success` built without `evidence_outputs` is one
+        # nobody has said how to persist, and the safe reading of silence is
+        # "not like this" -- the names still appear, so the pack shows WHAT was
+        # read even when it may not show the value.
+        base["outputs"] = result.evidence_outputs or {
+            name: "<redacted>" for name in result.outputs
+        }
     elif isinstance(result, BusinessOutcome):
         base.update(code=result.code, message=result.message, at_step=result.at_step)
     elif isinstance(result, Escalated):

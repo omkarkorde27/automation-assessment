@@ -92,6 +92,22 @@ def _as_value_source(
         if bound:
             return ValueSource(param=bound)
 
+    # Part 5.3's third canonicalization: timestamps are flagged volatile.
+    #
+    # A date is correct exactly once. Frozen as a literal it back-dates every
+    # future run to the day the flow was recorded -- which most applications
+    # accept without complaint, which is what makes it dangerous: nothing
+    # downstream would ever surface it. So it becomes a declared input, typed
+    # DATE, marked volatile, with the recorded value kept as the default so
+    # unattended replay still runs.
+    #
+    # Checked BEFORE the screen-data refusal below on purpose. A date the
+    # application also displays would otherwise be refused as customer data read
+    # off a record, with a diagnosis that is simply wrong: a date is not PII, and
+    # the right answer for it is parameterization rather than refusal.
+    if _looks_volatile(value):
+        return ValueSource(param=_volatile_param_name(step, params))
+
     # A value that appeared on screen and was typed back is recorded customer
     # data. There is no version of baking that into a reusable capability that
     # is acceptable, so the recording fails rather than degrades.
@@ -106,6 +122,42 @@ def _as_value_source(
                 )
 
     return ValueSource(literal=value)
+
+
+# Conservative on purpose: a detector that fires on ordinary text turns every
+# recorded constant into a parameter the caller now has to supply. Dates in the
+# three shapes a back-office form actually accepts, plus a clock time.
+_VOLATILE = (
+    re.compile(r"^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?Z?$"),   # 2026-09-14
+    re.compile(r"^\d{1,2}/\d{1,2}/\d{2,4}$"),                            # 09/14/2026
+    re.compile(r"^\d{1,2}-[A-Za-z]{3}-\d{2,4}$"),                         # 14-SEP-2026
+    re.compile(r"^\d{1,2}:\d{2}(:\d{2})?( ?[AaPp][Mm])?$"),              # 14:05
+)
+
+
+def _looks_volatile(value: str) -> bool:
+    """Is this a timestamp -- a value that was true on one day and no other?"""
+    text = (value or "").strip()
+    return bool(text) and any(p.match(text) for p in _VOLATILE)
+
+
+def _volatile_param_name(step: DiscoveryStep, params: dict[str, str]) -> str:
+    """Name the input a promoted timestamp becomes.
+
+    From the field's own label where there is one, because `effective_date` is
+    reviewable and `date_1` is not. Falls back to a positional name rather than
+    raising: refusing a whole recording over a field with no label would trade a
+    real capability for a cosmetic one.
+    """
+    node = step.node
+    candidates = []
+    if node is not None:
+        candidates = [node.anchors.label, node.anchors.row_label, node.name]
+    for raw in candidates:
+        slug = re.sub(r"[^a-z0-9]+", "_", (raw or "").strip().lower()).strip("_")
+        if slug and not slug[0].isdigit() and slug not in params:
+            return slug[:40]
+    return f"recorded_date_{step.index}"
 
 
 def _parameter_bound_to(step: DiscoveryStep, run: DiscoveryRun) -> str:
@@ -476,12 +528,22 @@ def _target_id(step: DiscoveryStep, used: set[str], params: dict[str, str] | Non
 # checkpoints -- synthesized from what actually changed
 # --------------------------------------------------------------------------
 
-def synthesize_checkpoint(step: DiscoveryStep, *, content_frame: tuple[str, ...]) -> Condition | None:
+def synthesize_checkpoint(step: DiscoveryStep, *, content_frame: tuple[str, ...],
+                          base_url: str) -> Condition | None:
     """What proves this step worked, derived from the pre/post observation delta.
 
     A checkpoint asserts something that became true *because* of the action, so
     it is built from the difference rather than from the end state: anything
     already on screen beforehand proves nothing about the click.
+
+    `base_url` is required rather than optional because leaving it out is the
+    bug it exists to prevent. A URL checkpoint built from the observed address
+    keeps whatever prefix that address had -- here `/t/demo-cu` -- and an
+    artifact carrying its recording tenant inside a checkpoint is pinned to that
+    tenant no matter what `binding` claims. It replays on the institution it was
+    learned from and fails on every sibling, which is Invariant 9 broken from
+    the inside. A default of `""` would silently reintroduce exactly that, so
+    there is none.
     """
     if step.pre is None or step.post is None or not step.ok:
         return None
@@ -497,7 +559,7 @@ def synthesize_checkpoint(step: DiscoveryStep, *, content_frame: tuple[str, ...]
     conditions: list[Condition] = []
 
     if after_url and after_url != before_url:
-        path = re.sub(r"^https?://[^/]+", "", after_url).split("?")[0]
+        path = _route_of(after_url, base_url)
         # Numeric path segments are this run's data, not the shape of the route.
         pattern = re.sub(r"/\d+", r"/\\d+", re.escape(path).replace("\\/", "/"))
         conditions.append(UrlCondition(
@@ -615,11 +677,20 @@ def record(
                                                            ActionType.SELECT_OPTION):
             value_source = _as_value_source(step, run, params)
             if value_source.param:
+                volatile = _looks_volatile(step.value or "")
                 inputs.setdefault(value_source.param, ParamSpec(
-                    type=ParamType.STRING,
-                    description=f"Supplied to: {step.reason}",
+                    type=ParamType.DATE if volatile else ParamType.STRING,
+                    description=(f"Recorded as {step.value!r} on the day of discovery. "
+                                 f"Supplied to: {step.reason}") if volatile
+                                else f"Supplied to: {step.reason}",
                     pattern=value_shape(step.value) or None,
                     example=None,
+                    volatile=volatile,
+                    # The recorded value survives as a DEFAULT, not as a literal.
+                    # A caller that knows better overrides it; one that does not
+                    # gets a flow that runs, and a schema that says the value is
+                    # stale by construction.
+                    default=step.value if volatile else None,
                 ))
 
         url_template = None
@@ -636,7 +707,8 @@ def record(
                 url_template=url_template,
                 key=_key_for(step),
             ),
-            checkpoint=synthesize_checkpoint(step, content_frame=content_frame),
+            checkpoint=synthesize_checkpoint(step, content_frame=content_frame,
+                                             base_url=run.base_url),
             risk=step.risk,
             requires_confirmation=step.risk is RiskTier.SUBMIT_IRREVERSIBLE,
         ))
@@ -690,7 +762,7 @@ def record(
     artifact = CapabilityArtifact(
         capability=CapabilityMeta(
             id=capability_id, version=version,
-            title=title or goal[:80],
+            title=title or _title_from(goal),
             description=goal,
             risk_tier=risk_tier,
         ),
@@ -773,6 +845,50 @@ def _generalize(text: str, params: dict[str, str], data: set[str] | None = None)
     for value in sorted(data or (), key=len, reverse=True):
         out = out.replace(value, "<redacted>")
     return out
+
+
+def _title_from(goal: str) -> str:
+    """A short label for the capability, from the goal it was recorded for.
+
+    The first SENTENCE, not the first eighty characters. Slicing prose mid-word
+    produced titles like "...so you can see and declare how th", and the title
+    is not decoration -- it is the first thing a reviewer reads in the catalog
+    and part of what a calling agent is shown.
+
+    *Known limit, stated in REPORT §7:* the description is still the discovery
+    goal verbatim, so a goal that contains exploratory instructions ("search for
+    a member that does not exist, so you can see how it reports that") describes
+    the RECORDING rather than the capability. Naming a capability well from its
+    own transcript is a job for the authoring review pass, not for a slice.
+    """
+    text = " ".join((goal or "").split())
+    if not text:
+        return ""
+    first = re.split(r"(?<=[.!?])\s+", text)[0]
+    if len(first) <= 100:
+        return first
+    # A single very long sentence: cut on a word boundary and say that it was.
+    return first[:97].rsplit(" ", 1)[0] + "..."
+
+
+def _route_of(url: str, base_url: str) -> str:
+    """The part of a URL that is the ROUTE, with the deployment stripped off.
+
+    The action side of the recorder has always done this -- `_templatize` turns
+    a recorded address into `{base_url}/members/{member_id}`. The condition side
+    did not, so checkpoints kept `/t/demo-cu` and pinned the flow to one
+    institution. Same canonicalization, same reason, one function apart.
+
+    Falls back to stripping scheme and host when the observed URL does not sit
+    under the recorded base -- a redirect to a login host, say. Better a route
+    that is merely over-specific than one built from a string this function does
+    not understand.
+    """
+    clean = url.split("?")[0].split("#")[0]
+    base = (base_url or "").rstrip("/")
+    if base and clean.startswith(base):
+        return clean[len(base):] or "/"
+    return re.sub(r"^https?://[^/]+", "", clean)
 
 
 def _templatize(url: str, base_url: str, params: dict[str, str]) -> str:

@@ -224,9 +224,23 @@ class WebSurface:
     async def act(self, action: Action) -> ActionResult:
         started = time.monotonic()
 
-        def done(ok: bool, **kw) -> ActionResult:
+        def safe(text: str) -> str:
+            """Keep a sensitive value out of anything that leaves this method.
+
+            `Action.sensitive` has meant "never journal this value" since M1 and
+            was read by nothing until M6 -- the exact shape the plan-diff gate's
+            declared-but-unconsumed category exists to catch. The leak it
+            guards is not hypothetical: a driver timeout on a `fill` quotes the
+            text it was typing, and the one `fill` in these flows that carries a
+            credential is the one most likely to time out on a login screen.
+            """
+            if not action.sensitive or not action.value:
+                return text
+            return text.replace(action.value, "<redacted>")
+
+        def done(ok: bool, error: str | None = None, **kw) -> ActionResult:
             return ActionResult(
-                ok=ok, action=action,
+                ok=ok, action=action, error=safe(error) if error else error,
                 duration_ms=int((time.monotonic() - started) * 1000), **kw
             )
 
@@ -234,7 +248,7 @@ class WebSurface:
             self.journal.emit("policy.denied", action=action.type.value,
                               denied_by=getattr(exc, "denied_by", "policy"),
                               derived_risk=tier.value if tier else None,
-                              error=exc.message)
+                              error=safe(exc.message))
             return done(False, derived_risk=tier, error=exc.message,
                         error_detail={"failure_class": type(exc).failure_class,
                                       "denied_by": getattr(exc, "denied_by", "policy")})

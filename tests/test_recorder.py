@@ -276,12 +276,51 @@ def test_a_checkpoint_is_built_from_what_changed_not_from_the_end_state():
 
     condition = synthesize_checkpoint(
         step(1, "click", ActionType.CLICK, n=node("button", "Search"), pre=before, post=after),
-        content_frame=("content",))
+        content_frame=("content",), base_url="http://x/t/demo-cu")
 
     rendered = condition.model_dump_json()
     assert "Search Results" in rendered, "the heading that appeared should be asserted"
     assert "/members/search" in rendered
     assert '"Search"' not in rendered, "the button was already there; it proves nothing"
+
+
+def test_a_synthesized_checkpoint_never_pins_the_tenant_it_was_recorded_on():
+    """Invariant 9, enforced at the point the condition is written.
+
+    A checkpoint built from the observed address keeps whatever prefix that
+    address had. The recorded artifacts shipped with `/t/demo-cu` inside eleven
+    URL checkpoints, so both capabilities replayed on the institution they were
+    learned from and failed on its sibling at the first checkpoint -- while
+    `binding` correctly claimed they were bound to the product.
+
+    The action side had always stripped the deployment (`_templatize`); the
+    condition side had not.
+    """
+    before = obs(node("button", "Search", node_id="n1"), url="http://x/t/demo-cu/members")
+    after = obs(node("button", "Search", node_id="n1"),
+                node("heading", "Search Results", node_id="n2"),
+                url="http://x/t/demo-cu/members/search")
+
+    condition = synthesize_checkpoint(
+        step(1, "click", ActionType.CLICK, n=node("button", "Search"), pre=before, post=after),
+        content_frame=("content",), base_url="http://x/t/demo-cu")
+
+    rendered = condition.model_dump_json()
+    assert "demo" not in rendered, f"the recording tenant survived into {rendered}"
+    assert "/members/search" in rendered, "and the route itself is still asserted"
+
+
+def test_a_url_outside_the_recorded_base_degrades_instead_of_guessing():
+    """A redirect to another host is not a route under `base_url`. Stripping
+    scheme and host is over-specific; inventing a prefix would be wrong."""
+    before = obs(node("button", "Go", node_id="n1"), url="http://x/t/demo-cu/members")
+    after = obs(node("heading", "Sign In", node_id="n2"), url="http://sso.example/login")
+
+    condition = synthesize_checkpoint(
+        step(1, "click", ActionType.CLICK, n=node("button", "Go"), pre=before, post=after),
+        content_frame=("content",), base_url="http://x/t/demo-cu")
+
+    assert "/login" in condition.model_dump_json()
 
 
 def test_typing_produces_no_checkpoint():
@@ -290,7 +329,7 @@ def test_typing_produces_no_checkpoint():
     before = obs(node("textbox", row_label="Member ID"))
     assert synthesize_checkpoint(
         step(1, "fill", ActionType.FILL, n=node("textbox"), value="1", pre=before, post=before),
-        content_frame=("content",)) is None
+        content_frame=("content",), base_url="http://x/t/demo-cu") is None
 
 
 def test_failed_and_exploratory_steps_are_pruned_from_the_flow():
@@ -467,3 +506,118 @@ def test_a_multi_field_form_is_not_mistaken_for_a_backtrack():
 
     assert len(artifact.steps) == 4
     assert set(artifact.inputs) == {"member_id", "initial_deposit", "nickname"}
+
+
+# --------------------------------------------------------------------------
+# Part 5.3's third canonicalization: timestamps flagged volatile
+#
+# Recorded in the plan as "not implemented in M4" and deferred here with the
+# rest of the safety hardening, because honouring it meant changing the M2
+# artifact contract. The failure it prevents is quiet by construction: a frozen
+# date back-dates every future run to the day of discovery, most applications
+# accept it without complaint, and nothing downstream would ever surface it.
+# --------------------------------------------------------------------------
+
+def _date_flow(value: str, *, label="Effective Date"):
+    field = node("textbox", row_label=label, node_id="n1")
+    before = obs(field)
+    return [step(1, "fill", ActionType.FILL, n=field, value=value,
+                 reason="set the effective date", pre=before, post=before,
+                 risk=RiskTier.INPUT),
+            step(2, "click", ActionType.CLICK, n=node("button", "Search", node_id="n2"),
+                 pre=before, post=obs(node("heading", "Results", node_id="n9")),
+                 risk=RiskTier.SUBMIT_REVERSIBLE)]
+
+
+@pytest.mark.parametrize("typed", ["2026-09-14", "09/14/2026", "14-SEP-2026", "14:05"])
+def test_a_recorded_timestamp_becomes_a_declared_input_not_a_literal(typed):
+    artifact = record(run_with(_date_flow(typed)), capability_id="member.lookup",
+                      product=PRODUCT, app_profile_ref="meridian-core@4.2")
+
+    source = artifact.steps[0].action.value_from
+    assert source.literal is None, f"{typed!r} was frozen into the flow"
+    assert source.param == "effective_date", "named from the field's own label"
+
+    spec = artifact.inputs["effective_date"]
+    assert spec.volatile is True
+    assert spec.type.value == "date"
+    assert spec.default == typed, (
+        "the recorded value survives as a default, so unattended replay still runs"
+    )
+
+
+def test_the_volatility_is_visible_to_the_calling_agent_not_only_to_a_reviewer():
+    """The caller is the one holding a stale default, so the generated JSON
+    Schema has to say so -- a note in the artifact only reaches a human."""
+    artifact = record(run_with(_date_flow("2026-09-14")), capability_id="member.lookup",
+                      product=PRODUCT, app_profile_ref="meridian-core@4.2")
+
+    described = artifact.input_json_schema()["properties"]["effective_date"]["description"]
+    assert "Time-dependent" in described
+    assert "supplied by the caller" in described
+
+
+def test_an_ordinary_constant_is_untouched_by_the_timestamp_rule():
+    """A detector that fires on ordinary text turns every recorded constant into
+    a parameter the caller now has to supply."""
+    field = node("combobox", row_label="Product Code", node_id="n1")
+    before = obs(field)
+    steps = [step(1, "select_option", ActionType.SELECT_OPTION, n=field, value="HSA",
+                  reason="choose the product code", pre=before, post=before,
+                  risk=RiskTier.INPUT),
+             step(2, "click", ActionType.CLICK, n=node("button", "Continue", node_id="n2"),
+                  pre=before, post=obs(node("heading", "Confirm", node_id="n9")),
+                  risk=RiskTier.SUBMIT_REVERSIBLE)]
+
+    artifact = record(run_with(steps), capability_id="member.open",
+                      product=PRODUCT, app_profile_ref="meridian-core@4.2")
+    assert artifact.steps[0].action.value_from.literal == "HSA"
+    assert artifact.inputs == {}
+
+
+def test_a_date_the_application_also_displays_is_parameterized_not_refused():
+    """Ordering matters, and it is not obvious.
+
+    R-M4-1 refuses a literal that matches text the app showed on screen, because
+    that is a customer's data read off a record. A date is not that: it is the
+    same value because it is today. Checking volatility first is what keeps the
+    recorder from failing a perfectly good recording with a diagnosis that is
+    simply wrong.
+    """
+    field = node("textbox", row_label="Effective Date", node_id="n1")
+    shown = node("cell", "2026-09-14", node_id="n8")
+    before = obs(field, shown)
+    steps = [step(1, "fill", ActionType.FILL, n=field, value="2026-09-14",
+                  reason="set the effective date", pre=before, post=before,
+                  risk=RiskTier.INPUT),
+             step(2, "click", ActionType.CLICK, n=node("button", "Search", node_id="n2"),
+                  pre=before, post=obs(node("heading", "Results", node_id="n9")),
+                  risk=RiskTier.SUBMIT_REVERSIBLE)]
+
+    artifact = record(run_with(steps), capability_id="member.lookup",
+                      product=PRODUCT, app_profile_ref="meridian-core@4.2")
+    assert artifact.inputs["effective_date"].volatile is True
+
+
+def test_an_unlabelled_date_field_still_records_rather_than_refusing():
+    """Falling back to a positional name trades a cosmetic loss for a real
+    capability. Refusing the whole recording over a missing label would not.
+
+    The field is addressable (it sits in a named section, so the locator ladder
+    is satisfied) but carries nothing a parameter could be named after -- which
+    is the case this fallback is for, and is distinct from the unaddressable
+    node the recorder refuses outright.
+    """
+    field = node("textbox", node_id="n1", section="Filters")
+    before = obs(field)
+    steps = [step(1, "fill", ActionType.FILL, n=field, value="2026-09-14",
+                  reason="set a date", pre=before, post=before, risk=RiskTier.INPUT),
+             step(2, "click", ActionType.CLICK, n=node("button", "Search", node_id="n2"),
+                  pre=before, post=obs(node("heading", "Results", node_id="n9")),
+                  risk=RiskTier.SUBMIT_REVERSIBLE)]
+
+    artifact = record(run_with(steps), capability_id="member.lookup",
+                      product=PRODUCT, app_profile_ref="meridian-core@4.2")
+    name = artifact.steps[0].action.value_from.param
+    assert name == "recorded_date_1"
+    assert artifact.inputs[name].volatile is True

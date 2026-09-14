@@ -27,6 +27,7 @@ the engine returns the terminal `Escalated` exactly as before.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -35,7 +36,7 @@ from ..locators.model import BBoxNormalized, FrameRef, LocatorBundle
 from ..observability.annotate import annotate
 from ..observability.journal import Journal, MemoryJournal
 from ..perception.model import Observation, UiNode
-from ..policy.redaction import apply_sensitivity, screenshot_masks
+from ..policy.redaction import apply_sensitivity, screenshot_allowed, screenshot_masks
 from ..profiles.resolve import ResolvedProfile
 from ..session.control import AUTOMATION, ControlLease, ControlState
 from ..surfaces.base import Action, ActionResult, ActionType, Surface
@@ -84,26 +85,55 @@ class LiveSession:
     journal: Journal = field(default_factory=MemoryJournal)
     run_id: str = ""
 
+    secrets: set[str] = field(default_factory=set)
+    """Regulated values seen masked on this session, carried across screens.
+    See `policy.redaction.apply_sensitivity`."""
+
+    forwarded: int = 0
+    """How many actions the console has put through `act()` on this session.
+
+    The discriminator for R-M6-4, and the reason it is a counter on the session
+    rather than a scan of the journal: a journal can be swapped, filtered or
+    shared between runs, and the question being asked -- "did anything come
+    through this console for this session" -- is about this object."""
+
     _observation: Observation | None = None
 
-    async def snapshot(self) -> tuple[Observation, bytes | None]:
+    async def snapshot(self, *, for_evidence: bool = False) -> tuple[Observation, bytes | None]:
         """The current screen: redacted nodes, and a masked, annotated picture.
 
         Redaction runs here, not in the console, for the same reason it runs in
         `annotate` for the model: this is the last point at which the pixels and
         the node list are still ours. A console that redacted its own output
         would be a second copy of the policy.
+
+        `for_evidence` says these bytes are going to disk rather than to the
+        operator watching the session, which is a stricter audience: the file
+        outlives the incident and travels, so every classified region is painted
+        over rather than only the ones an operator may not see. The node list is
+        identical either way -- text masking has no such split, because a node
+        list is never the thing an operator reads a number off.
         """
         raw = await self.surface.observe()
-        observation = apply_sensitivity(raw, self.profile.profile)
+        observation = apply_sensitivity(raw, self.profile.profile, self.secrets)
         self._observation = observation
 
         png: bytes | None = None
-        if self.surface.capabilities.can_screenshot:
+        # `sensitivity.never_screenshot` names screens that may not be captured
+        # at all -- the finer instrument is masking boxes, and this is the one
+        # for a page whose answer to "which parts are regulated" is "all of it".
+        # Declared since M2 and, until M6, read by nothing.
+        allowed = screenshot_allowed(raw.frame_urls.get("content") or raw.url,
+                                     self.profile.profile)
+        if not allowed:
+            self.journal.emit("screenshot.suppressed", session=self.session_id,
+                              reason="the profile forbids capturing this screen")
+        if allowed and self.surface.capabilities.can_screenshot:
             try:
                 shot = await self.surface.screenshot()
                 png = annotate(shot, observation,
-                               masks=screenshot_masks(raw, self.profile.profile))
+                               masks=screenshot_masks(raw, self.profile.profile,
+                                                      persisted=for_evidence))
             except Exception:
                 # A screenshot that fails must not take the node list with it --
                 # the list is the part the operator acts on.
@@ -120,6 +150,7 @@ class LiveSession:
         dispatch, including the calls that turn out to be invalid. Journaling
         per-branch is how the branch nobody thought about goes unrecorded.
         """
+        self.forwarded += 1
         self.journal.emit(
             # `action=`, not `kind=`: the journal's own event name is `kind`, and
             # shadowing it would swallow the entry -- an R-M4-2 violation
@@ -160,6 +191,27 @@ class LiveSession:
 
         with self.lease.acting_as(operator):
             return await self.surface.act(action)
+
+    async def fingerprint(self) -> str:
+        """A hash of what is on screen right now.
+
+        Computed over the RAW observation, not the redacted one. It is a hash --
+        nothing about the values survives it -- and redacting first would blind
+        it to exactly the edits worth noticing, since a masked field is masked
+        because it is the important one. Role, name, value and enabled state,
+        sorted, plus the content frame's url: enough that a click that opened a
+        dialog or a keystroke that filled a field changes it, and stable across
+        this application's per-render id churn, which changes on every load and
+        would otherwise report a change every time.
+        """
+        observation = await self.surface.observe()
+        parts = sorted(
+            f"{n.role}\x1f{n.name}\x1f{n.value or ''}\x1f{int(n.enabled)}"
+            for n in observation.nodes if n.visible
+        )
+        url = observation.frame_urls.get("content") or observation.url
+        digest = hashlib.sha256(("\x1e".join(parts) + "\x1d" + url).encode())
+        return digest.hexdigest()[:16]
 
     def _bundle_for(self, node: UiNode, observation: Observation) -> LocatorBundle:
         """Turn the node the operator picked into a locator, using the recorder.
@@ -225,6 +277,9 @@ class InterventionBroker:
         self.sessions: dict[str, LiveSession] = {}
         self._waiters: dict[str, asyncio.Event] = {}
         self._resolutions: dict[str, Resolution] = {}
+        self._takeovers: dict[str, tuple[str, int]] = {}
+        """intervention id -> (screen fingerprint, forwarded count) as they were
+        the moment the operator took control. R-M6-4's before-picture."""
 
     # ---- registration ---------------------------------------------------
 
@@ -306,6 +361,80 @@ class InterventionBroker:
         updated = request.model_copy(update={"status": InterventionStatus.TAKEN})
         self.store.save(updated)
         self.journal.emit("intervention.taken", intervention=request.id, operator=operator)
+        return updated
+
+    async def mark_taken(self, request: InterventionRequest) -> None:
+        """Photograph the screen before the operator touches it (R-M6-4).
+
+        Separate from `take` and asynchronous because observing is I/O and
+        `take` is not; the console calls both, in order. A session that is gone
+        records nothing rather than raising -- there is no takeover to audit.
+        """
+        live = self.sessions.get(request.session_id)
+        if live is None:
+            return
+        try:
+            self._takeovers[request.id] = (await live.fingerprint(), live.forwarded)
+        except Exception as exc:  # an audit must never be what breaks a takeover
+            self.journal.emit("takeover.fingerprint_failed", intervention=request.id,
+                              error=f"{type(exc).__name__}: {exc}")
+
+    async def audit_release(self, request: InterventionRequest) -> InterventionRequest:
+        """Did the screen change with nothing on the record to explain it?
+
+        Called at release, BEFORE `resolve` wakes the run -- afterwards the
+        engine starts driving and the screen stops being the one the operator
+        left. Three outcomes:
+
+          * nothing changed                       -> nothing to say
+          * changed, and actions came through     -> the console explains it
+          * changed, and none did                 -> `handback.unsanctioned_change`
+
+        The third is the case §3.7's "or directly in the headed window" makes
+        possible and the choke point cannot see: an OS-level click reaches
+        Chromium without passing through `act()`, so there is no journal entry,
+        no derived tier and no lease check. Keeping the escape hatch is
+        deliberate -- it is what an operator uses when the action vocabulary
+        cannot express the fix, and removing it would make the console the
+        ceiling on what a person is allowed to repair. What is not acceptable is
+        an evidence pack that shows a screen changing and says nothing.
+
+        Honest limit: this detects THAT something happened off-channel, never
+        WHAT. An operator holding the window is outside the choke point by
+        construction; the guarantee is evidence completeness, not containment.
+        """
+        before = self._takeovers.pop(request.id, None)
+        live = self.sessions.get(request.session_id)
+        if before is None or live is None:
+            return request
+
+        before_hash, forwarded_at_take = before
+        try:
+            after_hash = await live.fingerprint()
+        except Exception as exc:
+            self.journal.emit("takeover.fingerprint_failed", intervention=request.id,
+                              error=f"{type(exc).__name__}: {exc}")
+            return request
+
+        forwarded = live.forwarded - forwarded_at_take
+        changed = after_hash != before_hash
+        unsanctioned = changed and forwarded == 0
+
+        self.journal.emit(
+            "handback.unsanctioned_change" if unsanctioned else "handback.audited",
+            intervention=request.id, session=request.session_id,
+            screen_before=before_hash, screen_after=after_hash,
+            changed=changed, forwarded_actions=forwarded,
+            note=("the screen changed while the operator held the lease and nothing "
+                  "was forwarded through the console -- the window was driven directly, "
+                  "so what was done is not recorded anywhere"
+                  if unsanctioned else ""),
+        )
+
+        if not unsanctioned:
+            return request
+        updated = request.model_copy(update={"unsanctioned_change": True})
+        self.store.save(updated)
         return updated
 
     def resolve(self, intervention_id: str, resolution: Resolution) -> InterventionRequest:

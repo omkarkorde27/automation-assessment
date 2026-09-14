@@ -8,6 +8,7 @@ that has to actually work.
 from __future__ import annotations
 
 from cua.artifact.schema import (
+    ApprovalState,
     Binding,
     CapabilityArtifact,
     CapabilityMeta,
@@ -195,6 +196,12 @@ def open_subaccount_artifact(**overrides) -> CapabilityArtifact:
             title="Open a sub-account for a member",
             description="Open a new sub-account and reach the confirmation screen.",
             risk_tier=CapabilityRisk.WRITES_IRREVERSIBLE,
+            # Approved, because M6's replay-side gate needs a reviewed artifact
+            # AND an explicit caller before an irreversible flow will run. This
+            # one is hand-authored and read by every reviewer of this repo, so
+            # `approved` is the honest state; `confirm_irreversible` is then the
+            # half the tests vary, which is the half the caller controls.
+            approval_state=ApprovalState.APPROVED,
         ),
         binding=Binding(
             product=ProductRef(vendor="meridian", product="core", version_range=">=4.2 <5"),
