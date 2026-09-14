@@ -273,11 +273,22 @@ sensitivity:
     # This was the other half of the label/value bug: the rules masked the
     # label "Last Name" and left the value "Whitfield" beside it in the clear,
     # which is exactly backwards.
+    #
+    # `mask: [text]` and not `[screenshot, text]`, on the `account_number`
+    # precedent. The audience for masking here is not the operator -- they
+    # typed it and already know it -- it is the journal, `result.json`, the
+    # evidence pack that gets attached to a ticket, and during discovery the
+    # model's prompt. A surname in a search box is the same regulated string as
+    # the Name cell on the record it retrieves, and a policy that turned on how
+    # the data got onto the screen would have a one-keystroke hole in it. What
+    # an operator holding the lease sees in the live picture is a different
+    # question, and they keep it; persisted screenshots mask every classified
+    # region regardless, via `screenshot_masks(..., persisted=True)`.
     - match:
         role: textbox
         scope: {anchor: {text: Last Name}, relation: within_row}
       classification: pii_name
-      mask: [screenshot, text]
+      mask: [text]
 
   # `account_number` is ON. It was the one detector left off, and with the node
   # rule above inert that meant nothing masked an account number anywhere. The

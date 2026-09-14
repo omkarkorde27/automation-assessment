@@ -29,7 +29,7 @@ from cua.escalation import InterventionBroker, InterventionStore, LiveSession
 from cua.observability.journal import MemoryJournal
 from cua.policy.redaction import (
     REDACTED, apply_sensitivity, classify, redact_output, redaction_for, screenshot_allowed,
-    scrub_text,
+    screenshot_masks, scrub_text,
 )
 from cua.profiles import ProfileRepository
 from cua.replay import ReplayEngine, Success
@@ -702,3 +702,48 @@ async def test_a_cell_with_no_content_under_a_regulated_column_is_not_masked(
     assert apply_sensitivity(
         record.model_copy(update={"nodes": (real,)}), profile.profile
     ).nodes[0].sensitive
+
+
+async def test_a_typed_query_is_masked_in_text_but_left_on_the_live_screen(
+        signed_in, profile, live_server):
+    """`mask: [text]`, not `[screenshot, text]` -- a deliberate choice, pinned.
+
+    The audience for masking a search box is not the operator: they typed the
+    surname and already know it. It is the journal, `result.json`, the evidence
+    pack that gets attached to a ticket, and during discovery the model's
+    prompt. A surname in a search box is the same regulated string as the Name
+    cell on the record it retrieves, so a policy that turned on HOW the data
+    reached the screen would have a one-keystroke hole in it.
+
+    What an operator holding the lease can see is the separate question, and it
+    is answered the way `account_number` answers it: the live picture keeps the
+    value, the archived one does not. Three assertions because the value of the
+    choice is in the three differing at once.
+    """
+    await signed_in.goto(f"{live_server}/t/demo-cu/members", wait_until="networkidle")
+    await signed_in.fill("input[name='last_name']", "Whitfield")
+    await signed_in.wait_for_timeout(120)
+    raw = await WebSurface(signed_in).observe()
+
+    box = next(n for n in raw.nodes
+               if n.role == "textbox" and n.anchors.row_label == "Last Name")
+    assert classify(box, profile.profile) == ("pii_name", ("text",)), (
+        "softening this to [screenshot, text] hides the operator's own query "
+        "from them; dropping the rule puts a surname in the journal"
+    )
+
+    redacted = apply_sensitivity(raw, profile.profile)
+    rbox = next(n for n in redacted.nodes
+                if n.role == "textbox" and n.anchors.row_label == "Last Name")
+    assert "Whitfield" not in (rbox.value or ""), "the journal copy is masked"
+
+    def covers(boxes) -> bool:
+        return any(abs(x - box.bbox.x) < 2 and abs(y - box.bbox.y) < 2
+                   for x, y, _, _ in boxes)
+
+    assert not covers(screenshot_masks(raw, profile.profile, persisted=False)), (
+        "an operator who has taken over reads their own query off the screen"
+    )
+    assert covers(screenshot_masks(raw, profile.profile, persisted=True)), (
+        "a file in an evidence pack outlives the incident and travels"
+    )

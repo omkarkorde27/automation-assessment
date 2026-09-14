@@ -27,7 +27,7 @@ cp .env.example .env             # fixture credentials (fake) + optional API key
 else in this README runs offline.**
 
 ```bash
-uv run pytest                    # 458 tests, no API key required
+uv run pytest                    # 459 tests, no API key required
 ```
 
 ---
