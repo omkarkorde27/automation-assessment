@@ -1,0 +1,528 @@
+{
+  "url": "http://127.0.0.1:8800/t/demo-cu/",
+  "title": "Demo Credit Union - Meridian Core",
+  "nodes": [
+    {
+      "node_id": "nav:n1",
+      "role": "link",
+      "name": "Home",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 25.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.027777777777777776,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Servicing",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "nav:n2",
+      "role": "link",
+      "name": "Member Search",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 53.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.058888888888888886,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Home",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "nav:n3",
+      "role": "link",
+      "name": "Sign Out",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 81.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.09,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Member Search",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n1",
+      "role": "columnheader",
+      "name": "Member ID",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 214.5,
+        "y": 101.5,
+        "w": 290.78125,
+        "h": 24.0,
+        "nx": 0.02157943067033976,
+        "ny": 0.11277777777777778,
+        "nw": 0.2670167584940312,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Name",
+        "row_text": "Member ID Name Branch Status",
+        "col_header": "",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "th",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n2",
+      "role": "columnheader",
+      "name": "Name",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 505.28125,
+        "y": 101.5,
+        "w": 333.171875,
+        "h": 24.0,
+        "nx": 0.28859618916437096,
+        "ny": 0.11277777777777778,
+        "nw": 0.3059429522497704,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Member ID",
+        "row_text": "Member ID Name Branch Status",
+        "col_header": "",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "Member ID",
+        "dialog_label": ""
+      },
+      "tag": "th",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n3",
+      "role": "columnheader",
+      "name": "Branch",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 838.453125,
+        "y": 101.5,
+        "w": 227.859375,
+        "h": 24.0,
+        "nx": 0.5945391414141414,
+        "ny": 0.11277777777777778,
+        "nw": 0.20923725895316805,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Member ID",
+        "row_text": "Member ID Name Branch Status",
+        "col_header": "",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "Name",
+        "dialog_label": ""
+      },
+      "tag": "th",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n4",
+      "role": "columnheader",
+      "name": "Status",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 1066.3125,
+        "y": 101.5,
+        "w": 190.1875,
+        "h": 24.0,
+        "nx": 0.8037764003673095,
+        "ny": 0.11277777777777778,
+        "nw": 0.17464416896235077,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Member ID",
+        "row_text": "Member ID Name Branch Status",
+        "col_header": "",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "Branch",
+        "dialog_label": ""
+      },
+      "tag": "th",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n5",
+      "role": "cell",
+      "name": "12345",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 214.5,
+        "y": 125.5,
+        "w": 290.78125,
+        "h": 24.0,
+        "nx": 0.02157943067033976,
+        "ny": 0.13944444444444445,
+        "nw": 0.2670167584940312,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "12345 <redacted> Riverside Active",
+        "col_header": "Member ID",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n6",
+      "role": "link",
+      "name": "12345",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 223.0,
+        "y": 130.0,
+        "w": 38.15625,
+        "h": 15.0,
+        "nx": 0.02938475665748393,
+        "ny": 0.14444444444444443,
+        "nw": 0.035037878787878785,
+        "nh": 0.016666666666666666
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "12345 <redacted> Riverside Active",
+        "col_header": "Member ID",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n7",
+      "role": "cell",
+      "name": "<redacted>",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 505.28125,
+        "y": 125.5,
+        "w": 333.171875,
+        "h": 24.0,
+        "nx": 0.28859618916437096,
+        "ny": 0.13944444444444445,
+        "nw": 0.3059429522497704,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Riverside",
+        "row_text": "12345 <redacted> Riverside Active",
+        "col_header": "Name",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": true
+    },
+    {
+      "node_id": "content:n8",
+      "role": "cell",
+      "name": "Riverside",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 838.453125,
+        "y": 125.5,
+        "w": 227.859375,
+        "h": 24.0,
+        "nx": 0.5945391414141414,
+        "ny": 0.13944444444444445,
+        "nw": 0.20923725895316805,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "12345 <redacted> Riverside Active",
+        "col_header": "Branch",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "<redacted>",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n9",
+      "role": "cell",
+      "name": "Active",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 1066.3125,
+        "y": 125.5,
+        "w": 190.1875,
+        "h": 24.0,
+        "nx": 0.8037764003673095,
+        "ny": 0.13944444444444445,
+        "nw": 0.17464416896235077,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "12345 <redacted> Riverside Active",
+        "col_header": "Status",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "Riverside",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n10",
+      "role": "link",
+      "name": "New Search",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 214.0,
+        "y": 160.0,
+        "w": 71.703125,
+        "h": 15.0,
+        "nx": 0.021120293847566574,
+        "ny": 0.17777777777777778,
+        "nw": 0.06584308999081727,
+        "nh": 0.016666666666666666
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    }
+  ],
+  "frame_paths": [
+    [],
+    [
+      "nav"
+    ],
+    [
+      "content"
+    ]
+  ],
+  "frame_urls": {
+    "": "http://127.0.0.1:8800/t/demo-cu/",
+    "nav": "http://127.0.0.1:8800/t/demo-cu/nav",
+    "content": "http://127.0.0.1:8800/t/demo-cu/members/search"
+  },
+  "captured_at": "2026-09-14T15:00:21.892310Z"
+}

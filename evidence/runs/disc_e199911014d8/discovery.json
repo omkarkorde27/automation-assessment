@@ -6,8 +6,8 @@
   "profile": "demo-cu@1",
   "profile_hash": "sha256:aa73fb4579be3b28971bf3c81479cb75",
   "status": "finished",
-  "stop_reason": "The \"Sub-Account Opened\" screen shows the status message \"Sub-account opened successfully.\" with new account number 200050001 for member 12345, product HSA, opening balance $60.00 \u2014 the opening is confirmed and complete.",
-  "finish_reason": "The \"Sub-Account Opened\" screen shows the status message \"Sub-account opened successfully.\" with new account number 200050001 for member 12345, product HSA, opening balance $60.00 \u2014 the opening is confirmed and complete.",
+  "stop_reason": "The \"Sub-Account Opened\" screen shows the status message \"Sub-account opened successfully.\" with new account number <redacted> for member 12345, product HSA, opening balance $60.00 \u2014 the opening is confirmed and complete.",
+  "finish_reason": "The \"Sub-Account Opened\" screen shows the status message \"Sub-account opened successfully.\" with new account number <redacted> for member 12345, product HSA, opening balance $60.00 \u2014 the opening is confirmed and complete.",
   "started_at": "2026-09-13T23:32:30.145814+00:00",
   "ended_at": "2026-09-13T23:33:07.686675+00:00",
   "tokens": {
@@ -164,7 +164,7 @@
       "tool": "extract",
       "reason": "The new account number is the answer the caller needs from this opening",
       "action": null,
-      "node": "cell \"200050001\"",
+      "node": "cell \"<redacted>\"",
       "value_shape": null,
       "param": null,
       "url": null,
@@ -194,7 +194,7 @@
     {
       "index": 12,
       "tool": "finish",
-      "reason": "The \"Sub-Account Opened\" screen shows the status message \"Sub-account opened successfully.\" with new account number 200050001 for member 12345, product HSA, opening balance $60.00 \u2014 the opening is confirmed and complete.",
+      "reason": "The \"Sub-Account Opened\" screen shows the status message \"Sub-account opened successfully.\" with new account number <redacted> for member 12345, product HSA, opening balance $60.00 \u2014 the opening is confirmed and complete.",
       "action": null,
       "node": null,
       "value_shape": null,
@@ -212,7 +212,7 @@
   "extractions": [
     {
       "output": "new_account_number",
-      "node": "cell \"200050001\"",
+      "node": "cell \"<redacted>\"",
       "at_step": 10
     },
     {

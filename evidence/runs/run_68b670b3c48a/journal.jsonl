@@ -1,0 +1,25 @@
+{"kind": "profile.specialized", "at": "2026-09-14T15:00:22.638646+00:00", "capability": "member.lookup_balance@1.0.0", "tenant": "demo-cu", "lineage": ["meridian-core@4.2", "demo-cu@1"], "profile_hash": "sha256:e316c87a3a7da6888228c68acc148c2b", "locator_overrides": [], "param_defaults": {}, "recoveries_inherited": ["dismiss_marketing_interstitial", "wait_out_spinner"], "unused_overrides": []}
+{"kind": "session.opening_app", "at": "2026-09-14T15:00:23.077206+00:00", "url": "http://127.0.0.1:8800/t/demo-cu"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:23.077475+00:00", "action": "navigate", "target": "http://127.0.0.1:8800/t/demo-cu/", "node": "", "claimed_risk": null, "derived_risk": "navigate", "mismatch": false}
+{"kind": "session.expired", "at": "2026-09-14T15:00:23.151049+00:00", "detector": "(url matches //login/ in frame content OR alert matching /(?i)session has expired/ is present)"}
+{"kind": "session.reauth_attempt", "at": "2026-09-14T15:00:23.151191+00:00", "attempt": 1}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:23.151282+00:00", "action": "navigate", "target": "http://127.0.0.1:8800/t/demo-cu/", "node": "", "claimed_risk": "navigate", "derived_risk": "navigate", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:23.199496+00:00", "action": "fill", "target": "login_user_field", "node": "textbox \"User ID\"", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:23.271358+00:00", "action": "fill", "target": "login_password_field", "node": "textbox \"Password\"", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:23.307062+00:00", "action": "click", "target": "login_submit_button", "node": "button \"Sign In\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:23.336005+00:00", "action": "wait", "target": "", "node": "", "claimed_risk": null, "derived_risk": "read_only", "mismatch": false}
+{"kind": "session.reauth_ok", "at": "2026-09-14T15:00:23.759217+00:00", "attempt": 1}
+{"kind": "run.started", "at": "2026-09-14T15:00:23.759702+00:00", "run_id": "run_68b670b3c48a", "capability": "member.lookup_balance@1.0.0", "tenant": "demo-cu", "profile": ["meridian-core@4.2", "demo-cu@1"], "profile_hash": "sha256:e316c87a3a7da6888228c68acc148c2b"}
+{"kind": "preflight.ok", "at": "2026-09-14T15:00:23.759919+00:00", "conditions": 12}
+{"kind": "step.started", "at": "2026-09-14T15:00:23.777448+00:00", "step": "s1", "intent": "Open the Member Search screen, the standard entry point for looking up a member", "action": "click", "risk": "submit_reversible"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:23.793537+00:00", "action": "click", "target": "member_search_link", "node": "link \"Member Search\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:23.819473+00:00", "step": "s1", "resolved": "nav:n2 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-14T15:00:23.835484+00:00", "step": "s1", "pass_no": 1}
+{"kind": "step.started", "at": "2026-09-14T15:00:23.923235+00:00", "step": "s2", "intent": "Enter the member id whose savings balance is being requested", "action": "fill", "risk": "input"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:23.939981+00:00", "action": "fill", "target": "member_id_input", "node": "textbox (in row 'Member ID')", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:23.966159+00:00", "step": "s2", "resolved": "content:n2 via anchor_relative[0] score=0.80", "degraded": false}
+{"kind": "step.started", "at": "2026-09-14T15:00:24.049100+00:00", "step": "s3", "intent": "Run the lookup to retrieve the member record and their savings balance", "action": "click", "risk": "submit_reversible"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:24.065759+00:00", "action": "click", "target": "search_button", "node": "button \"Search\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "action.resolved", "at": "2026-09-14T15:00:24.086445+00:00", "step": "s3", "resolved": "content:n3 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "outcome.detected", "at": "2026-09-14T15:00:24.102599+00:00", "step": "s3", "code": "MEMBER_NOT_FOUND", "detector": "alert matching /(?i)No\\ records\\ found\\ matching\\ your\\ search\\ criteria\\./ is present"}
+{"kind": "run.finished", "at": "2026-09-14T15:00:24.102746+00:00", "status": "business_outcome", "code": "MEMBER_NOT_FOUND"}

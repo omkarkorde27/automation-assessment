@@ -118,6 +118,328 @@ def serve_console(
     uvicorn.run(create_console(store=store), host=host, port=port)
 
 
+@app.command("catalog")
+def catalog_cmd(
+    as_json: bool = typer.Option(False, "--json", help="Emit the tool definitions themselves."),
+    approved_only: bool = typer.Option(False, help="Only capabilities cleared for unattended use."),
+    capabilities_root: str = typer.Option("capabilities", help="Where artifacts live."),
+) -> None:
+    """What a calling agent sees: the recorded capabilities as typed tools.
+
+    This is the end of the through-line. A model discovered the flow once, the
+    recorder froze it into an artifact, and what a production agent gets is a
+    tool definition with typed inputs, typed outputs and the declared business
+    outcomes it must branch on -- generated from the artifact, never written by
+    hand, and never involving a model at call time.
+
+    `--json` is the payload you would hand to the Messages API `tools` array.
+    """
+    import json as _json
+
+    from .artifact.schema import ApprovalState
+    from .artifact.store import ArtifactStore
+
+    store = ArtifactStore(capabilities_root)
+    artifacts = [
+        a for a in store.list()
+        if not approved_only or a.capability.approval_state is ApprovalState.APPROVED
+    ]
+    if not artifacts:
+        typer.echo("no capabilities recorded yet -- run `cua discover`.", err=True)
+        raise typer.Exit(1)
+
+    if as_json:
+        typer.echo(_json.dumps([a.as_tool_definition() for a in artifacts], indent=2))
+        raise typer.Exit(0)
+
+    for artifact in artifacts:
+        meta = artifact.capability
+        typer.echo(f"{artifact.ref}")
+        typer.echo(f"  {meta.title or meta.description}")
+        typer.echo(f"  risk        {meta.risk_tier.value}   "
+                   f"approval {meta.approval_state.value}")
+        typer.echo(f"  tool name   {artifact.as_tool_definition()['name']}")
+        required = artifact.input_json_schema().get("required", [])
+        for name, spec in artifact.inputs.items():
+            flags = []
+            if name in required:
+                flags.append("required")
+            if spec.volatile:
+                flags.append("volatile")
+            if spec.sensitive:
+                flags.append("sensitive")
+            typer.echo(f"    in   {name}: {spec.type.value}"
+                       + (f"  [{', '.join(flags)}]" if flags else ""))
+        for name, spec in artifact.outputs.items():
+            typer.echo(f"    out  {name}: {spec.type.value}"
+                       + (f"  [redact {spec.redact.value}]"
+                          if spec.redact.value != "none" else ""))
+        for outcome in artifact.outcomes:
+            # The four-variant contract, at the point a caller reads it: these
+            # are answers, not errors, and a caller that treats them as errors
+            # has fallen into the trap the brief names in its own glossary.
+            typer.echo(f"    outcome  {outcome.code}  (not a failure)")
+        typer.echo("")
+
+
+@app.command("approve")
+def approve_cmd(
+    capability: str = typer.Argument(..., help="Capability id, or id@version."),
+    state: str = typer.Option("approved", help="approved | draft | deprecated | drifted."),
+    reason: str = typer.Option("", help="Why. Recorded beside the artifact."),
+    capabilities_root: str = typer.Option("capabilities", help="Where artifacts live."),
+) -> None:
+    """Move a capability's approval state -- the human review gate.
+
+    An irreversible capability replays only when it is `approved` AND the caller
+    passes `--confirm-irreversible`. This is the half a person controls. It is a
+    command rather than an edit because approving must be an act somebody
+    performs, not a field somebody changes: the state is excluded from the
+    content hash precisely so that approving does not look like tampering.
+    """
+    from .artifact.schema import ApprovalState
+    from .artifact.store import ArtifactStore
+
+    try:
+        target = ApprovalState(state)
+    except ValueError:
+        typer.echo(f"{state!r} is not an approval state "
+                   f"({', '.join(s.value for s in ApprovalState)})", err=True)
+        raise typer.Exit(2)
+
+    store = ArtifactStore(capabilities_root)
+    artifact = store.resolve_ref(capability)
+    was = artifact.capability.approval_state.value
+    updated = store.set_approval(artifact.ref, target, reason=reason)
+
+    typer.echo(f"{updated.ref}: {was} -> {updated.capability.approval_state.value}")
+    typer.echo(f"content hash unchanged: {updated.verify_hash()}  {updated.content_hash}")
+    if target is ApprovalState.APPROVED and \
+            updated.capability.risk_tier.value == "writes_irreversible":
+        typer.echo("\nThis capability commits something. Replay still requires "
+                   "--confirm-irreversible on every call.")
+
+
+@app.command("replay")
+def replay_cmd(
+    capability: str = typer.Argument(..., help="Capability id, or id@version."),
+    params: str = typer.Option("{}", "--params", help="JSON object of inputs."),
+    tenant: str = typer.Option("demo-cu", help="Tenant profile to run against."),
+    base_url: str = typer.Option("", help="Override the profile's base_url."),
+    inject: str = typer.Option("", "--inject",
+                               help="Arm a mockbank fault before the run, to exercise "
+                                    "the error paths on demand."),
+    arm_at_step: str = typer.Option("", "--arm-at-step",
+                                    help="Arm --inject when this step starts, instead of "
+                                         "before the run. A fault armed up front is spent "
+                                         "on the login POST."),
+    confirm_irreversible: bool = typer.Option(
+        False, "--confirm-irreversible",
+        help="Explicit intent to perform this capability's writes. Required, together "
+             "with an approved artifact, before an irreversible flow will replay."),
+    headed: bool = typer.Option(False, help="Show the browser."),
+    screenshots: str = typer.Option("failure", help="failure | all | none."),
+    policy_file: str = typer.Option("config/policy.yaml", "--policy",
+                                    help="Allowlist policy, enforced inside act()."),
+    profiles_root: str = typer.Option("profiles", help="Profile directory."),
+    capabilities_root: str = typer.Option("capabilities", help="Where artifacts live."),
+    evidence_root: str = typer.Option("evidence", help="Where to write the run's evidence."),
+) -> None:
+    """Replay a recorded capability. No model, no API key, no network but the app.
+
+    Exit code is the result variant, so a caller can branch on it without
+    parsing anything: 0 success, 2 business outcome, 3 escalated, 1 failure.
+    A business outcome is NOT a failure -- "no such member" is an answer the
+    caller asked for, and collapsing it into an error is the trap the brief
+    names in its own glossary.
+    """
+    import asyncio
+    import json as _json
+
+    from dotenv import load_dotenv
+
+    # The profile holds credential REFERENCES (`env:MOCKBANK_USER`), never
+    # values, so the values have to come from somewhere at run time. This does
+    # not make replay need an API key -- `.env.example` ships the fixture's fake
+    # credentials and nothing else is read from it here.
+    load_dotenv()
+
+    try:
+        parsed = _json.loads(params)
+    except _json.JSONDecodeError as exc:
+        typer.echo(f"--params is not valid JSON: {exc}", err=True)
+        raise typer.Exit(2)
+
+    code = asyncio.run(_run_replay(
+        capability=capability, params=parsed, tenant=tenant, base_url=base_url,
+        inject=inject, arm_at_step=arm_at_step,
+        confirm_irreversible=confirm_irreversible, headed=headed,
+        screenshots=screenshots, policy_file=policy_file, profiles_root=profiles_root,
+        capabilities_root=capabilities_root, evidence_root=evidence_root,
+    ))
+    raise typer.Exit(code)
+
+
+#: Result variant -> process exit code. Four variants, four codes: the contract
+#: a shell script sees is the same one the calling agent sees.
+EXIT_FOR = {"success": 0, "failure": 1, "business_outcome": 2, "escalated": 3}
+
+
+async def _run_replay(
+    *, capability, params, tenant, base_url, inject, arm_at_step, confirm_irreversible,
+    headed, screenshots, policy_file, profiles_root, capabilities_root, evidence_root,
+) -> int:
+    import httpx
+    from playwright.async_api import async_playwright
+
+    from .artifact.store import ArtifactStore
+    from .observability.evidence import EvidenceWriter
+    from .observability.journal import Journal
+    from .policy.allowlist import load_policy
+    from .profiles.resolve import ProfileRepository, specialize
+    from .replay.engine import CredentialResolver, ReplayEngine
+    from .session.auth import Authenticator
+    from .surfaces.web_playwright import WebSurface
+
+    store = ArtifactStore(capabilities_root)
+    # `resolve_ref` accepts "id" or "id@version" -- a demo command should not
+    # make somebody type a semver they can read off the filename.
+    artifact = store.resolve_ref(capability)
+
+    repository = ProfileRepository(profiles_root)
+    resolved = repository.resolve(tenant)
+    if base_url:
+        surface_cfg = resolved.profile.surface.model_copy(update={"base_url": base_url})
+        resolved = resolved.__class__(
+            profile=resolved.profile.model_copy(update={"surface": surface_cfg}),
+            lineage=resolved.lineage, hash=resolved.hash,
+        )
+
+    # The tenant overlay, applied at LOAD time (Part 6). One recording serves
+    # every institution on the product; what runs is base + overlay, computed
+    # fresh and journaled so the specialization is traceable rather than
+    # invisible. The stored artifact is never mutated.
+    effective, report = specialize(artifact, resolved)
+
+    allowlist = load_policy(policy_file).for_capability(artifact.ref)
+
+    # Fail here rather than three screens in as SESSION_EXPIRED. An unresolved
+    # credential reference and a genuinely expiring session produce the same
+    # symptom, and only one of them is fixed by copying a file.
+    credentials = CredentialResolver()
+    unresolved = [
+        f"{name} -> {ref}"
+        for name, ref in resolved.profile.auth.credentials.items()
+        if not credentials.resolve(ref)
+    ]
+    if unresolved:
+        typer.echo(
+            f"credential reference(s) resolve to nothing: {', '.join(unresolved)}.\n"
+            f"The profile holds references, never values -- copy .env.example to .env "
+            f"(the fixture's credentials are fake and committed there).", err=True)
+        return 1
+    evidence = EvidenceWriter(evidence_root, f"run_{__import__('uuid').uuid4().hex[:12]}")
+
+    origin = resolved.base_url.rsplit(f"/t/{tenant}", 1)[0]
+
+    def arm() -> None:
+        httpx.post(f"{origin}/t/{tenant}/__control",
+                   params={"fault": inject, "count": 1}, timeout=10)
+
+    class ArmAtStep(type(evidence.journal)):
+        """Arms a fault when a named step starts.
+
+        A fault armed before the run is spent on the login POST, so choosing
+        WHERE the session breaks means arming from inside the run -- and the
+        journal is the only thing the engine tells about its own progress.
+        """
+
+        armed = False
+
+        def emit(self, kind: str, **data):
+            if (not ArmAtStep.armed and kind == "step.started"
+                    and data.get("step") == arm_at_step):
+                ArmAtStep.armed = True
+                arm()
+            super().emit(kind, **data)
+
+    journal: Journal = evidence.journal
+    if inject and arm_at_step:
+        journal = ArmAtStep(evidence.dir / "journal.jsonl")
+
+    typer.echo(f"capability  {artifact.ref}  ({artifact.capability.approval_state.value})")
+    typer.echo(f"tenant      {tenant}  ({' <- '.join(resolved.lineage)})")
+    typer.echo(f"target      {resolved.base_url}")
+    typer.echo(f"allowlist   {policy_file}  ({len(allowlist.denied_paths)} denial(s), "
+               f"max {allowlist.max_navigations} navigations)")
+    if inject:
+        typer.echo(f"fault       {inject}"
+                   + (f" armed at {arm_at_step}" if arm_at_step else " armed now"))
+    if report.locator_overrides_applied or report.param_defaults_applied:
+        typer.echo(f"overlay     {len(report.locator_overrides_applied)} locator override(s) "
+                   f"{report.locator_overrides_applied}, param defaults "
+                   f"{report.param_defaults_applied or dict()}")
+    if report.unused_overrides:
+        # Almost always a stale override left behind after a re-record, and
+        # silently doing nothing is how it stays that way.
+        typer.echo(f"overlay     WARNING unused override(s): {report.unused_overrides}")
+    typer.echo(f"evidence    {evidence.dir}\n")
+
+    journal.emit(
+        "profile.specialized", capability=artifact.ref, tenant=tenant,
+        lineage=list(report.profile_lineage), profile_hash=report.profile_hash,
+        locator_overrides=report.locator_overrides_applied,
+        param_defaults=report.param_defaults_applied,
+        recoveries_inherited=report.recoveries_inherited,
+        unused_overrides=report.unused_overrides,
+    )
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=not headed)
+        context = await browser.new_context(
+            viewport={"width": resolved.profile.surface.viewport.width,
+                      "height": resolved.profile.surface.viewport.height})
+        # Part 7's third failure artifact. Tracing is started unconditionally and
+        # kept only when the run ends badly: you cannot decide to start tracing
+        # after the thing you needed traced. Chromium's own recorded timeline,
+        # openable with `playwright show-trace`, is the one debugging aid this
+        # system cannot reconstruct from its own journal.
+        await context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        page = await context.new_page()
+        surface = WebSurface(page, journal=journal)
+        result = None
+        try:
+            # Sign in before arming, for the same reason the fault is armed
+            # mid-run: authentication is not the thing under test.
+            await Authenticator(surface, resolved, credentials=credentials,
+                                journal=journal).sign_in()
+            if inject and not arm_at_step:
+                arm()
+
+            engine = ReplayEngine(
+                surface, effective, resolved, journal=journal,
+                credentials=credentials, tenant=tenant, policy=allowlist,
+                confirm_irreversible=confirm_irreversible,
+                evidence=evidence, screenshots=screenshots,
+            )
+            result = await engine.run(params)
+        finally:
+            try:
+                if result is not None and not result.ok:
+                    pack = evidence.dir / "failure"
+                    pack.mkdir(parents=True, exist_ok=True)
+                    await context.tracing.stop(path=pack / "trace.zip")
+                else:
+                    await context.tracing.stop()
+            except Exception:
+                pass  # a trace is never what breaks a run
+            await browser.close()
+
+    typer.echo(result.describe())
+    typer.echo(f"\nevidence    {evidence.dir}")
+    return EXIT_FOR.get(result.status.value, 1)
+
+
 @app.command("discover")
 def discover_cmd(
     goal: str = typer.Option(..., "--goal", help="What the capability should achieve."),

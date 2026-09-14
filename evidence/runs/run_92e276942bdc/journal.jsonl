@@ -1,0 +1,14 @@
+{"kind": "profile.specialized", "at": "2026-09-14T15:00:32.662777+00:00", "capability": "member.open_subaccount@1.0.0", "tenant": "demo-cu", "lineage": ["meridian-core@4.2", "demo-cu@1"], "profile_hash": "sha256:e316c87a3a7da6888228c68acc148c2b", "locator_overrides": [], "param_defaults": {}, "recoveries_inherited": ["dismiss_marketing_interstitial", "wait_out_spinner"], "unused_overrides": []}
+{"kind": "session.opening_app", "at": "2026-09-14T15:00:33.106984+00:00", "url": "http://127.0.0.1:8800/t/demo-cu"}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:33.107245+00:00", "action": "navigate", "target": "http://127.0.0.1:8800/t/demo-cu/", "node": "", "claimed_risk": null, "derived_risk": "navigate", "mismatch": false}
+{"kind": "session.expired", "at": "2026-09-14T15:00:33.194888+00:00", "detector": "(url matches //login/ in frame content OR alert matching /(?i)session has expired/ is present)"}
+{"kind": "session.reauth_attempt", "at": "2026-09-14T15:00:33.195056+00:00", "attempt": 1}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:33.195155+00:00", "action": "navigate", "target": "http://127.0.0.1:8800/t/demo-cu/", "node": "", "claimed_risk": "navigate", "derived_risk": "navigate", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:33.242774+00:00", "action": "fill", "target": "login_user_field", "node": "textbox \"User ID\"", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:33.315530+00:00", "action": "fill", "target": "login_password_field", "node": "textbox \"Password\"", "claimed_risk": "input", "derived_risk": "input", "mismatch": false}
+{"kind": "policy.checked", "at": "2026-09-14T15:00:33.349666+00:00", "action": "click", "target": "login_submit_button", "node": "button \"Sign In\"", "claimed_risk": "submit_reversible", "derived_risk": "submit_reversible", "mismatch": false}
+{"kind": "session.reauth_ok", "at": "2026-09-14T15:00:33.381768+00:00", "attempt": 1}
+{"kind": "run.started", "at": "2026-09-14T15:00:33.382268+00:00", "run_id": "run_92e276942bdc", "capability": "member.open_subaccount@1.0.0", "tenant": "demo-cu", "profile": ["meridian-core@4.2", "demo-cu@1"], "profile_hash": "sha256:e316c87a3a7da6888228c68acc148c2b"}
+{"kind": "preflight.ok", "at": "2026-09-14T15:00:33.382604+00:00", "conditions": 14}
+{"kind": "policy.irreversible_refused", "at": "2026-09-14T15:00:33.382688+00:00", "capability": "member.open_subaccount@1.0.0", "approval": "draft", "confirmed": false, "steps": ["s9"]}
+{"kind": "run.finished", "at": "2026-09-14T15:00:33.382750+00:00", "status": "escalated", "reason": "IRREVERSIBLE_NOT_AUTHORIZED", "step": "s9"}

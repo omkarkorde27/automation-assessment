@@ -1,0 +1,1152 @@
+{
+  "url": "http://127.0.0.1:8800/t/demo-cu/",
+  "title": "Demo Credit Union - Meridian Core",
+  "nodes": [
+    {
+      "node_id": "nav:n1",
+      "role": "link",
+      "name": "Home",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 25.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.027777777777777776,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Servicing",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "nav:n2",
+      "role": "link",
+      "name": "Member Search",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 53.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.058888888888888886,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Home",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "nav:n3",
+      "role": "link",
+      "name": "Sign Out",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 81.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.09,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Member Search",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n1",
+      "role": "cell",
+      "name": "Member ID",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 216.0,
+        "y": 103.0,
+        "w": 102.15625,
+        "h": 23.0,
+        "nx": 0.02295684113865932,
+        "ny": 0.11444444444444445,
+        "nw": 0.09380739210284665,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "12345",
+        "row_text": "Member ID 12345",
+        "col_header": "",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n2",
+      "role": "cell",
+      "name": "12345",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 320.15625,
+        "y": 103.0,
+        "w": 104.390625,
+        "h": 23.0,
+        "nx": 0.11860078053259872,
+        "ny": 0.11444444444444445,
+        "nw": 0.09585915977961433,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Member ID",
+        "row_text": "Member ID 12345",
+        "col_header": "",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "Member ID",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n3",
+      "role": "cell",
+      "name": "Name",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 216.0,
+        "y": 128.0,
+        "w": 102.15625,
+        "h": 23.0,
+        "nx": 0.02295684113865932,
+        "ny": 0.14222222222222222,
+        "nw": 0.09380739210284665,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "Name <redacted>",
+        "col_header": "Member ID",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n4",
+      "role": "cell",
+      "name": "<redacted>",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 320.15625,
+        "y": 128.0,
+        "w": 104.390625,
+        "h": 23.0,
+        "nx": 0.11860078053259872,
+        "ny": 0.14222222222222222,
+        "nw": 0.09585915977961433,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Name",
+        "row_text": "Name <redacted>",
+        "col_header": "12345",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "Name",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": true
+    },
+    {
+      "node_id": "content:n5",
+      "role": "cell",
+      "name": "SSN",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 216.0,
+        "y": 153.0,
+        "w": 102.15625,
+        "h": 23.0,
+        "nx": 0.02295684113865932,
+        "ny": 0.17,
+        "nw": 0.09380739210284665,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "SSN <redacted>",
+        "col_header": "Member ID",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n6",
+      "role": "cell",
+      "name": "<redacted>",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 320.15625,
+        "y": 153.0,
+        "w": 104.390625,
+        "h": 23.0,
+        "nx": 0.11860078053259872,
+        "ny": 0.17,
+        "nw": 0.09585915977961433,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "SSN",
+        "row_text": "SSN <redacted>",
+        "col_header": "12345",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "SSN",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": true
+    },
+    {
+      "node_id": "content:n7",
+      "role": "cell",
+      "name": "Date of Birth",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 216.0,
+        "y": 178.0,
+        "w": 102.15625,
+        "h": 23.0,
+        "nx": 0.02295684113865932,
+        "ny": 0.19777777777777777,
+        "nw": 0.09380739210284665,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "Date of Birth <redacted>",
+        "col_header": "Member ID",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n8",
+      "role": "cell",
+      "name": "<redacted>",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 320.15625,
+        "y": 178.0,
+        "w": 104.390625,
+        "h": 23.0,
+        "nx": 0.11860078053259872,
+        "ny": 0.19777777777777777,
+        "nw": 0.09585915977961433,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Date of Birth",
+        "row_text": "Date of Birth <redacted>",
+        "col_header": "12345",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "Date of Birth",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": true
+    },
+    {
+      "node_id": "content:n9",
+      "role": "cell",
+      "name": "Branch",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 216.0,
+        "y": 203.0,
+        "w": 102.15625,
+        "h": 23.0,
+        "nx": 0.02295684113865932,
+        "ny": 0.22555555555555556,
+        "nw": 0.09380739210284665,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Riverside",
+        "row_text": "Branch Riverside",
+        "col_header": "Member ID",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n10",
+      "role": "cell",
+      "name": "Riverside",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 320.15625,
+        "y": 203.0,
+        "w": 104.390625,
+        "h": 23.0,
+        "nx": 0.11860078053259872,
+        "ny": 0.22555555555555556,
+        "nw": 0.09585915977961433,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Branch",
+        "row_text": "Branch Riverside",
+        "col_header": "12345",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "Branch",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n11",
+      "role": "cell",
+      "name": "Status",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 216.0,
+        "y": 228.0,
+        "w": 102.15625,
+        "h": 23.0,
+        "nx": 0.02295684113865932,
+        "ny": 0.25333333333333335,
+        "nw": 0.09380739210284665,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Active",
+        "row_text": "Status Active",
+        "col_header": "Member ID",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n12",
+      "role": "cell",
+      "name": "Active",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 320.15625,
+        "y": 228.0,
+        "w": 104.390625,
+        "h": 23.0,
+        "nx": 0.11860078053259872,
+        "ny": 0.25333333333333335,
+        "nw": 0.09585915977961433,
+        "nh": 0.025555555555555557
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Status",
+        "row_text": "Status Active",
+        "col_header": "12345",
+        "section_label": "Member Detail",
+        "nearest_heading": "",
+        "preceding_text": "Status",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n13",
+      "role": "columnheader",
+      "name": "Account Number",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 214.5,
+        "y": 313.5,
+        "w": 395.328125,
+        "h": 24.0,
+        "nx": 0.02157943067033976,
+        "ny": 0.34833333333333333,
+        "nw": 0.36301939853076215,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Type",
+        "row_text": "Account Number Type Balance Status",
+        "col_header": "",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "th",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n14",
+      "role": "columnheader",
+      "name": "Type",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 609.828125,
+        "y": 313.5,
+        "w": 220.03125,
+        "h": 24.0,
+        "nx": 0.38459882920110194,
+        "ny": 0.34833333333333333,
+        "nw": 0.20204889807162535,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Account Number",
+        "row_text": "Account Number Type Balance Status",
+        "col_header": "",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "Account Number",
+        "dialog_label": ""
+      },
+      "tag": "th",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n15",
+      "role": "columnheader",
+      "name": "Balance",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 829.859375,
+        "y": 313.5,
+        "w": 242.375,
+        "h": 24.0,
+        "nx": 0.5866477272727273,
+        "ny": 0.34833333333333333,
+        "nw": 0.22256657483930212,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Account Number",
+        "row_text": "Account Number Type Balance Status",
+        "col_header": "",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "Type",
+        "dialog_label": ""
+      },
+      "tag": "th",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n16",
+      "role": "columnheader",
+      "name": "Status",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 1072.234375,
+        "y": 313.5,
+        "w": 184.265625,
+        "h": 24.0,
+        "nx": 0.8092143021120294,
+        "ny": 0.34833333333333333,
+        "nw": 0.16920626721763085,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Account Number",
+        "row_text": "Account Number Type Balance Status",
+        "col_header": "",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "Balance",
+        "dialog_label": ""
+      },
+      "tag": "th",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n17",
+      "role": "cell",
+      "name": "<redacted>",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 214.5,
+        "y": 337.5,
+        "w": 395.328125,
+        "h": 24.0,
+        "nx": 0.02157943067033976,
+        "ny": 0.375,
+        "nw": 0.36301939853076215,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Savings",
+        "row_text": "<redacted> Savings $4,210.75 Open",
+        "col_header": "Account Number",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": true
+    },
+    {
+      "node_id": "content:n18",
+      "role": "cell",
+      "name": "Savings",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 609.828125,
+        "y": 337.5,
+        "w": 220.03125,
+        "h": 24.0,
+        "nx": 0.38459882920110194,
+        "ny": 0.375,
+        "nw": 0.20204889807162535,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Savings $4,210.75 Open",
+        "col_header": "Type",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "<redacted>",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n19",
+      "role": "cell",
+      "name": "$4,210.75",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 829.859375,
+        "y": 337.5,
+        "w": 242.375,
+        "h": 24.0,
+        "nx": 0.5866477272727273,
+        "ny": 0.375,
+        "nw": 0.22256657483930212,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Savings $4,210.75 Open",
+        "col_header": "Balance",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "Savings",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n20",
+      "role": "cell",
+      "name": "Open",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 1072.234375,
+        "y": 337.5,
+        "w": 184.265625,
+        "h": 24.0,
+        "nx": 0.8092143021120294,
+        "ny": 0.375,
+        "nw": 0.16920626721763085,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Savings $4,210.75 Open",
+        "col_header": "Status",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "$4,210.75",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n21",
+      "role": "cell",
+      "name": "<redacted>",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 214.5,
+        "y": 361.5,
+        "w": 395.328125,
+        "h": 24.0,
+        "nx": 0.02157943067033976,
+        "ny": 0.40166666666666667,
+        "nw": 0.36301939853076215,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "Checking",
+        "row_text": "<redacted> Checking $812.30 Open",
+        "col_header": "Account Number",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": true
+    },
+    {
+      "node_id": "content:n22",
+      "role": "cell",
+      "name": "Checking",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 609.828125,
+        "y": 361.5,
+        "w": 220.03125,
+        "h": 24.0,
+        "nx": 0.38459882920110194,
+        "ny": 0.40166666666666667,
+        "nw": 0.20204889807162535,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Checking $812.30 Open",
+        "col_header": "Type",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "<redacted>",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n23",
+      "role": "cell",
+      "name": "$812.30",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 829.859375,
+        "y": 361.5,
+        "w": 242.375,
+        "h": 24.0,
+        "nx": 0.5866477272727273,
+        "ny": 0.40166666666666667,
+        "nw": 0.22256657483930212,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Checking $812.30 Open",
+        "col_header": "Balance",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "Checking",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n24",
+      "role": "cell",
+      "name": "Open",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 1072.234375,
+        "y": 361.5,
+        "w": 184.265625,
+        "h": 24.0,
+        "nx": 0.8092143021120294,
+        "ny": 0.40166666666666667,
+        "nw": 0.16920626721763085,
+        "nh": 0.02666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "<redacted>",
+        "row_text": "<redacted> Checking $812.30 Open",
+        "col_header": "Status",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "$812.30",
+        "dialog_label": ""
+      },
+      "tag": "td",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n25",
+      "role": "link",
+      "name": "Open Sub-Account",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 214.0,
+        "y": 398.0,
+        "w": 112.21875,
+        "h": 15.0,
+        "nx": 0.021120293847566574,
+        "ny": 0.44222222222222224,
+        "nw": 0.10304752066115702,
+        "nh": 0.016666666666666666
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Accounts",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n26",
+      "role": "link",
+      "name": "New Search",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 348.546875,
+        "y": 398.0,
+        "w": 71.703125,
+        "h": 15.0,
+        "nx": 0.1446711432506887,
+        "ny": 0.44222222222222224,
+        "nw": 0.06584308999081727,
+        "nh": 0.016666666666666666
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Open Sub-Account",
+        "nearest_heading": "",
+        "preceding_text": "|",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    }
+  ],
+  "frame_paths": [
+    [],
+    [
+      "nav"
+    ],
+    [
+      "content"
+    ]
+  ],
+  "frame_urls": {
+    "": "http://127.0.0.1:8800/t/demo-cu/",
+    "nav": "http://127.0.0.1:8800/t/demo-cu/nav",
+    "content": "http://127.0.0.1:8800/t/demo-cu/members/12345"
+  },
+  "captured_at": "2026-09-14T15:00:30.209830Z"
+}

@@ -486,3 +486,50 @@ def test_target_ids_lists_every_overridable_locator():
     ids = set(lookup_balance_artifact().target_ids)
     assert {"member_id_input", "search_button", "result_row_link",
             "savings_balance_cell", "not_found_notice"} <= ids
+
+
+
+def test_adding_an_optional_field_to_the_schema_does_not_break_a_sealed_artifact():
+    """Schema evolution must not look like tampering.
+
+    This was found the hard way: adding one optional field to `ElementMatch` --
+    a field nobody set on any existing artifact -- changed the serialized form
+    of every capability and broke its integrity check. `cua approve` then
+    refused to load its own committed artifacts.
+
+    A hash of "what the flow says" must not move when the schema grows a field
+    the flow does not use. `SCHEMA_VERSION` is the signal for a change that is
+    genuinely breaking.
+    """
+    from cua.conditions.model import ElementCondition, ElementMatch
+
+    artifact = lookup_balance_artifact().seal()
+    sealed = artifact.content_hash
+
+    # Re-validating through the model is what a schema addition does to a stored
+    # file: every default-valued field materializes.
+    reloaded = CapabilityArtifact.model_validate(artifact.model_dump(mode="json"))
+    assert reloaded.compute_hash() == sealed, (
+        "a round trip through the current schema must not move the hash"
+    )
+
+    # And a field explicitly written to its own default means what the default
+    # means, so it hashes the same.
+    explicit = ElementCondition(
+        element=ElementMatch(role="heading", name="x"), exists=True, min_count=1)
+    implicit = ElementCondition(element=ElementMatch(role="heading", name="x"))
+    a = artifact.model_copy(update={"success": artifact.success.model_copy(
+        update={"checkpoint": explicit})}).compute_hash()
+    b = artifact.model_copy(update={"success": artifact.success.model_copy(
+        update={"checkpoint": implicit})}).compute_hash()
+    assert a == b, "two artifacts that say the same thing must hash the same"
+
+
+def test_a_real_change_to_the_flow_still_moves_the_hash():
+    """The other half. A hash that never moves is not an integrity check."""
+    artifact = lookup_balance_artifact().seal()
+    changed = artifact.model_copy(update={
+        "steps": (artifact.steps[0].model_copy(update={"intent": "something else"}),)
+                 + artifact.steps[1:]})
+    assert changed.compute_hash() != artifact.content_hash
+    assert not changed.verify_hash()
