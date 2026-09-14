@@ -68,6 +68,9 @@ class AuthoringReport:
     rejected: list[str] = field(default_factory=list)
     concerns: list[str] = field(default_factory=list)
     skipped: str = ""
+    model: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
 
     def summary(self) -> str:
         if self.skipped:
@@ -84,14 +87,32 @@ class Reviewer(Protocol):
     def review(self, *, system: str, prompt: str) -> AuthoringReview: ...
 
 
+# The reviewer does not need the model the agent needs.
+#
+# Discovery is open-ended: work out which of forty unlabelled table cells is the
+# field you want, from a screenshot and an accessibility dump. The review pass is
+# the opposite -- it reads an already-successful, structured transcript and fills
+# in a fixed schema, with a hard constraint ("only outcomes whose detector
+# matches a screen listed below") that is checked in code afterwards regardless.
+# That is a small-model task, and the guards in `review_artifact` mean a weaker
+# reviewer degrades toward proposing nothing rather than toward proposing
+# something wrong.
+DEFAULT_REVIEWER_MODEL = "claude-haiku-4-5-20251001"
+
+
 class AnthropicReviewer:
     """Structured output via `messages.parse`, so the result is typed rather
     than a JSON blob we hope parses."""
 
-    def __init__(self, client, *, model: str = "claude-opus-5", max_tokens: int = 2048) -> None:
+    def __init__(self, client, *, model: str = DEFAULT_REVIEWER_MODEL,
+                 max_tokens: int = 2048) -> None:
         self._client = client
         self.model = model
         self.max_tokens = max_tokens
+        self.input_tokens = 0
+        self.output_tokens = 0
+        """Counted separately from the agent loop, so the cost of authoring is
+        visible rather than folded into the run total."""
 
     def review(self, *, system: str, prompt: str) -> AuthoringReview:
         response = self._client.messages.parse(
@@ -101,6 +122,10 @@ class AnthropicReviewer:
             messages=[{"role": "user", "content": prompt}],
             output_format=AuthoringReview,
         )
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            self.input_tokens += usage.input_tokens
+            self.output_tokens += usage.output_tokens
         return response.parsed_output or AuthoringReview()
 
 
@@ -187,8 +212,11 @@ def review_artifact(
         report.skipped = "the run observed no notice-shaped screens to reason about"
         return artifact, report
 
+    report.model = getattr(reviewer, "model", "")
     try:
         review = reviewer.review(system=SYSTEM, prompt=build_prompt(artifact, run))
+        report.input_tokens = getattr(reviewer, "input_tokens", 0)
+        report.output_tokens = getattr(reviewer, "output_tokens", 0)
     except Exception as exc:  # authoring is best-effort; a failure must not lose the recording
         report.skipped = f"reviewer unavailable: {type(exc).__name__}: {exc}"
         return artifact, report

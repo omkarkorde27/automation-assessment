@@ -1,0 +1,53 @@
+{
+  "run_id": "disc_deb070ce99ed",
+  "goal": "Search for member 99999, which does not exist, so you can see and declare how this application reports a member it cannot find. Then search for member 12345 and read their current savings balance.",
+  "tenant": "demo-cu",
+  "model": "claude-sonnet-5",
+  "profile": "demo-cu@1",
+  "profile_hash": "sha256:aa73fb4579be3b28971bf3c81479cb75",
+  "status": "stuck",
+  "stop_reason": "the screen did not change across 3 consecutive actions",
+  "finish_reason": "",
+  "started_at": "2026-09-13T23:58:06.709137+00:00",
+  "ended_at": "2026-09-13T23:58:17.671858+00:00",
+  "tokens": {
+    "input": 13731,
+    "output": 386
+  },
+  "steps": [
+    {
+      "index": 2,
+      "tool": "observe",
+      "reason": "Refresh view to get current node ids after navigation",
+      "action": null,
+      "node": null,
+      "value_shape": null,
+      "param": null,
+      "url": null,
+      "risk": "read_only",
+      "ok": true,
+      "error": null,
+      "changed_screen": false,
+      "pruned": true,
+      "pruned_because": "an observation is not a step"
+    },
+    {
+      "index": 4,
+      "tool": "observe",
+      "reason": "Get fresh node ids to click Member Search correctly",
+      "action": null,
+      "node": null,
+      "value_shape": null,
+      "param": null,
+      "url": null,
+      "risk": "read_only",
+      "ok": true,
+      "error": null,
+      "changed_screen": false,
+      "pruned": true,
+      "pruned_because": "an observation is not a step"
+    }
+  ],
+  "outcomes": [],
+  "extractions": []
+}

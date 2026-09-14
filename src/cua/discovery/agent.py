@@ -215,7 +215,7 @@ class DiscoveryAgent:
         if name == "extract":
             node = self._node(args.get("node_id", ""))
             if node is None:
-                return self._bad_node(args.get("node_id", "")), ""
+                return self._bad_node(args.get("node_id", ""), "extract", reason), ""
             self.run.extractions.append(DeclaredExtraction(
                 output_name=args.get("output_name", "value"), node=node,
                 at_step=self._step_index, reason=reason))
@@ -252,7 +252,7 @@ class DiscoveryAgent:
         if name in ("click", "fill", "select_option"):
             node = self._node(args.get("node_id", ""))
             if node is None:
-                return self._bad_node(args.get("node_id", "")), ""
+                return self._bad_node(args.get("node_id", ""), name, reason), ""
 
         if name == "click":
             action_type = ActionType.CLICK
@@ -496,7 +496,20 @@ class DiscoveryAgent:
             return None
         return self._last_observation.by_id(node_id)
 
-    def _bad_node(self, node_id: str) -> str:
+    def _bad_node(self, node_id: str, tool: str = "", reason: str = "") -> str:
+        """A tool call naming an element that is not on screen.
+
+        Recorded as a pruned step rather than silently answered. A model that
+        invents node ids leaves gaps in the step numbering otherwise, and the
+        evidence pack should show the mistakes as well as the successes -- the
+        gaps are how you find out a weaker model was hallucinating ids rather
+        than reading the screen.
+        """
+        self._record(DiscoveryStep(
+            index=self._step_index, tool=tool or "?", reason=reason, ok=False,
+            error=f"no element {node_id!r} on screen", failure_class="LOCATOR_UNRESOLVED",
+            pre=self._last_observation, post=self._last_observation,
+            pruned=True, pruned_because="referenced an element that was not on screen"))
         return (f"There is no element {node_id!r} on the current screen. "
                 f"Observe again and use a node_id exactly as listed.")
 

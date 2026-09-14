@@ -550,7 +550,7 @@
         "frame": null,
         "min_count": 1
       },
-      "description": "The searched member id matches no record. The app shows the Search Results page with the alert \"No records found matching your search criteria.\" and only a \"Return to Member Search\" link \u2014 no member detail is available. This is a valid answer, not an error.",
+      "description": "The searched member id matches no record. The app shows the Search Results page with the alert \"No records found matching your search criteria.\" and only a \"Return to Member Search\" link — no member detail is available. This is a valid answer, not an error.",
       "after_step": null,
       "message_from": null,
       "terminal": true

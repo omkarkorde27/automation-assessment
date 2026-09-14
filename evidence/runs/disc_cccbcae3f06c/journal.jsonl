@@ -1,0 +1,54 @@
+{"kind": "session.opening_app", "at": "2026-09-13T23:56:45.583340+00:00", "url": "http://127.0.0.1:8800/t/demo-cu"}
+{"kind": "session.expired", "at": "2026-09-13T23:56:45.613117+00:00", "detector": "(url matches //login/ in frame content OR alert matching /(?i)session has expired/ is present)"}
+{"kind": "session.reauth_attempt", "at": "2026-09-13T23:56:45.613270+00:00", "attempt": 1}
+{"kind": "session.reauth_ok", "at": "2026-09-13T23:56:46.117717+00:00", "attempt": 1}
+{"kind": "discovery.started", "at": "2026-09-13T23:56:46.117960+00:00", "run_id": "disc_cccbcae3f06c", "goal": "Search for member 99999, which does not exist, so you can see and declare how this application reports a member it cannot find. Then search for member 12345 and read their current savings balance.", "tenant": "demo-cu", "model": "claude-opus-5", "profile_hash": "sha256:aa73fb4579be3b28971bf3c81479cb75"}
+{"kind": "observation.captured", "at": "2026-09-13T23:56:46.128553+00:00", "step": 0, "nodes": 12, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:ea3938e680d18cc4ed9f2ee8315fc66c"}
+{"kind": "llm.decision", "at": "2026-09-13T23:56:49.520731+00:00", "step": 1, "tool": "click", "reason": "Open the Member Search screen, the standard entry point for looking up a member", "target": "link \"Member Search\"", "risk": "submit_reversible"}
+{"kind": "observation.captured", "at": "2026-09-13T23:56:49.544425+00:00", "step": 1, "nodes": 8, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:ab5bec6d6935203708ec24b583de33ec"}
+{"kind": "action.executed", "at": "2026-09-13T23:56:49.544616+00:00", "step": 1, "action": "click", "ok": true, "error": null, "resolved": "nav:n2 via role_name_exact[0] score=1.00"}
+{"kind": "llm.decision", "at": "2026-09-13T23:56:53.474680+00:00", "step": 2, "tool": "fill", "reason": "Enter the member id to look up so the search can find the member record", "target": "textbox (in row 'Member ID')", "risk": "input"}
+{"kind": "observation.captured", "at": "2026-09-13T23:56:53.502708+00:00", "step": 2, "nodes": 8, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:ab5bec6d6935203708ec24b583de33ec"}
+{"kind": "action.executed", "at": "2026-09-13T23:56:53.502919+00:00", "step": 2, "action": "fill", "ok": true, "error": null, "resolved": "content:n2 via anchor_relative[0] score=0.80"}
+{"kind": "llm.decision", "at": "2026-09-13T23:56:56.980227+00:00", "step": 3, "tool": "click", "reason": "Run the lookup to see how the system reports a member id that does not exist", "target": "button \"Search\"", "risk": "submit_reversible"}
+{"kind": "observation.captured", "at": "2026-09-13T23:56:57.012761+00:00", "step": 3, "nodes": 3, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:b4dba6d38364b8c98a6a8db2e0bee0ae"}
+{"kind": "observation.captured", "at": "2026-09-13T23:56:57.282095+00:00", "step": 3, "nodes": 5, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:3c9e78337929fe470e9ee8a48599a8fd"}
+{"kind": "action.executed", "at": "2026-09-13T23:56:57.282519+00:00", "step": 3, "action": "click", "ok": true, "error": null, "resolved": "content:n3 via role_name_exact[0] score=1.00"}
+{"kind": "discovery.outcome_declared", "at": "2026-09-13T23:57:03.118926+00:00", "code": "MEMBER_NOT_FOUND", "reason": "Record how the application reports an unknown member so the capability can return \"no such member\" as a typed result"}
+{"kind": "llm.decision", "at": "2026-09-13T23:57:07.501902+00:00", "step": 5, "tool": "click", "reason": "Go back to the search form to look up the second member", "target": "link \"Return to Member Search\"", "risk": "submit_reversible"}
+{"kind": "observation.captured", "at": "2026-09-13T23:57:07.531600+00:00", "step": 5, "nodes": 8, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:ab5bec6d6935203708ec24b583de33ec"}
+{"kind": "action.executed", "at": "2026-09-13T23:57:07.531818+00:00", "step": 5, "action": "click", "ok": true, "error": null, "resolved": "content:n2 via role_name_exact[0] score=1.00"}
+{"kind": "llm.decision", "at": "2026-09-13T23:57:12.041767+00:00", "step": 6, "tool": "fill", "reason": "Enter the member id whose savings balance is being requested", "target": "textbox (in row 'Member ID')", "risk": "input"}
+{"kind": "observation.captured", "at": "2026-09-13T23:57:12.068857+00:00", "step": 6, "nodes": 8, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:ab5bec6d6935203708ec24b583de33ec"}
+{"kind": "action.executed", "at": "2026-09-13T23:57:12.069081+00:00", "step": 6, "action": "fill", "ok": true, "error": null, "resolved": "content:n2 via anchor_relative[0] score=0.80"}
+{"kind": "llm.decision", "at": "2026-09-13T23:57:15.792985+00:00", "step": 7, "tool": "click", "reason": "Run the lookup to retrieve the member record and their savings balance", "target": "button \"Search\"", "risk": "submit_reversible"}
+{"kind": "observation.captured", "at": "2026-09-13T23:57:15.830024+00:00", "step": 7, "nodes": 13, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:197b70e05611826c81827220955ea480"}
+{"kind": "action.executed", "at": "2026-09-13T23:57:15.830283+00:00", "step": 7, "action": "click", "ok": true, "error": null, "resolved": "content:n3 via role_name_exact[0] score=1.00"}
+{"kind": "llm.decision", "at": "2026-09-13T23:57:19.814308+00:00", "step": 8, "tool": "click", "reason": "Open the matched member's record to view their account balances", "target": "link \"12345\"", "risk": "navigate"}
+{"kind": "observation.captured", "at": "2026-09-13T23:57:19.842992+00:00", "step": 8, "nodes": 3, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:b4dba6d38364b8c98a6a8db2e0bee0ae"}
+{"kind": "observation.captured", "at": "2026-09-13T23:57:20.127770+00:00", "step": 8, "nodes": 29, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:6a3ca8be10e7b62de2dafd25b110a82e"}
+{"kind": "action.executed", "at": "2026-09-13T23:57:20.128086+00:00", "step": 8, "action": "click", "ok": true, "error": null, "resolved": "content:n6 via role_name_exact[0] score=1.00"}
+{"kind": "discovery.extraction", "at": "2026-09-13T23:57:25.087951+00:00", "output": "savings_balance", "node": "cell \"$4,210.75\"", "reason": "Capture the balance from the Accounts row whose Type is Savings, which is the value the request asked for"}
+{"kind": "discovery.extraction", "at": "2026-09-13T23:57:28.412797+00:00", "output": "member_name", "node": "cell \"Dana Whitfield\"", "reason": "Capture the member name so a caller can confirm the balance belongs to the expected member"}
+{"kind": "discovery.finished", "at": "2026-09-13T23:57:32.515592+00:00", "status": "finished", "reason": "The Member Detail screen for member 12345 (Dana Whitfield) is displayed with the Accounts table showing the Savings account 100045218 at $4,210.75, which answers the balance request; the earlier 99999 search produced the \"No records found matching your search criteria.\" alert, now declared as the MEMBER_NOT_FOUND outcome.", "steps": 11, "kept": 7, "input_tokens": 104289, "output_tokens": 1594}
+{"kind": "authoring.reviewed", "at": "2026-09-13T23:57:43.415201+00:00", "summary": "0 outcome(s) added, 2 checkpoint concern(s)", "applied": [], "rejected": [], "concerns": ["s1: Checkpoint relies on button named 'Search' being present, but this is brittle to UI text changes (e.g., 'Find', 'Look Up', 'Submit'). Consider matching the URL pattern alone, which is more robust.", "s3: Checkpoint only verifies the search results URL was reached, but does not distinguish between a successful search result and the 'No records found' outcome. The checkpoint passes for both cases, making it weak for detecting when the flow should branch to error handling."]}
+{"kind": "artifact.recorded", "at": "2026-09-13T23:57:43.416381+00:00", "ref": "member.lookup_balance@1.0.0", "hash": "sha256:1486218fa205b51ab079bc922292509da46ccc78663a4b0e583b6a6e936a25fb", "steps": 4, "outcomes": 1}
+{"kind": "verify.started", "at": "2026-09-13T23:57:43.417267+00:00", "ref": "member.lookup_balance@1.0.0", "params": ["member_id"]}
+{"kind": "run.started", "at": "2026-09-13T23:57:43.417389+00:00", "run_id": "run_04ec1d55d107", "capability": "member.lookup_balance@1.0.0", "tenant": "demo-cu", "profile": ["meridian-core@4.2", "demo-cu@1"], "profile_hash": "sha256:aa73fb4579be3b28971bf3c81479cb75"}
+{"kind": "preflight.ok", "at": "2026-09-13T23:57:43.417658+00:00", "conditions": 12}
+{"kind": "step.started", "at": "2026-09-13T23:57:43.436147+00:00", "step": "s1", "intent": "Open the Member Search screen, the standard entry point for looking up a member", "action": "click", "risk": "submit_reversible"}
+{"kind": "action.resolved", "at": "2026-09-13T23:57:43.447835+00:00", "step": "s1", "resolved": "nav:n2 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-13T23:57:43.457848+00:00", "step": "s1", "pass_no": 1}
+{"kind": "step.started", "at": "2026-09-13T23:57:43.457977+00:00", "step": "s2", "intent": "Enter the member id whose savings balance is being requested", "action": "fill", "risk": "input"}
+{"kind": "action.resolved", "at": "2026-09-13T23:57:43.465516+00:00", "step": "s2", "resolved": "content:n2 via anchor_relative[0] score=0.80", "degraded": false}
+{"kind": "step.started", "at": "2026-09-13T23:57:43.470433+00:00", "step": "s3", "intent": "Run the lookup to retrieve the member record and their savings balance", "action": "click", "risk": "submit_reversible"}
+{"kind": "action.resolved", "at": "2026-09-13T23:57:43.475530+00:00", "step": "s3", "resolved": "content:n3 via role_name_exact[0] score=1.00", "degraded": false}
+{"kind": "checkpoint.retry", "at": "2026-09-13T23:57:43.480155+00:00", "step": "s3", "remaining": 2, "expected": "url matches //t/demo\\-cu/members/search$/ in frame content"}
+{"kind": "checkpoint.passed", "at": "2026-09-13T23:57:43.900987+00:00", "step": "s3", "pass_no": 2}
+{"kind": "step.started", "at": "2026-09-13T23:57:43.901304+00:00", "step": "s4", "intent": "Open the matched member's record to view their account balances", "action": "click", "risk": "navigate"}
+{"kind": "action.resolved", "at": "2026-09-13T23:57:43.913913+00:00", "step": "s4", "resolved": "content:n6 via role_name_pattern[0] score=0.90", "degraded": false}
+{"kind": "checkpoint.passed", "at": "2026-09-13T23:57:43.927839+00:00", "step": "s4", "pass_no": 1}
+{"kind": "extraction.ok", "at": "2026-09-13T23:57:43.937266+00:00", "output": "savings_balance", "resolved": "content:n19 via anchor_relative[0] score=0.80", "degraded": false}
+{"kind": "extraction.ok", "at": "2026-09-13T23:57:43.945714+00:00", "output": "member_name", "resolved": "content:n4 via anchor_relative[0] score=0.80", "degraded": false}
+{"kind": "run.finished", "at": "2026-09-13T23:57:43.954656+00:00", "status": "success", "outputs": ["member_name", "savings_balance"]}
+{"kind": "verify.finished", "at": "2026-09-13T23:57:43.954951+00:00", "variant": "Success"}

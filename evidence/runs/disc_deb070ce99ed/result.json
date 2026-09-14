@@ -1,0 +1,6 @@
+{
+  "run_id": "disc_deb070ce99ed",
+  "status": "stuck",
+  "finished_at": "2026-09-13T23:58:17.672776+00:00",
+  "reason": "the screen did not change across 3 consecutive actions"
+}
