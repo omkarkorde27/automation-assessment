@@ -75,6 +75,21 @@ Regenerate any of these with the commands in the root `README.md`.
 | `run_92e276942bdc` | `escalated` `IRREVERSIBLE_NOT_AUTHORIZED` | the write flow refused: the artifact is a draft and nobody passed explicit intent |
 | `run_7a30a00f0a27` | `success` | the same write flow, once approved and explicitly confirmed. `new_account_number` is `*****0001` here and whole in the caller's hands |
 
+## The agent-facing interface — a real model invoking a capability
+
+`agent_round_trip.txt` is the transcript of
+`uv run python scripts/watch_agent_call.py`: `cua catalog --json` shelled out for
+real, sent as `tools` to claude-sonnet-5, and the model's `tool_use` dispatched to
+the M3 replay engine. Two Sonnet calls, about a cent. It carries both halves — a
+`success` and a `business_outcome` returned as tool results the model reasons over,
+and (below the separator) an argument the artifact refuses, coming back as
+`PARAM_INVALID` in 34 ms with no browser navigation.
+
+It also records two things that are true and uncomfortable: the model spends a
+replay on member 99999 because the capability description is the discovery goal
+verbatim, and `member_name` reaches the model redacted. Both are discussed in
+`REPORT.md` section 7.
+
 ## Reading a journal
 
 ```bash

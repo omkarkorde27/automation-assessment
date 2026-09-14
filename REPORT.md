@@ -356,10 +356,73 @@ rather than screens.
 - **No auth/SSO.** The fixture's session is a cookie. Session-timeout *recovery* is
   implemented anyway, because that is an error-handling requirement rather than an
   auth one.
-- **Stretch goals deferred.** The cheapest hooks are in place: the capability
-  catalog is generated (`cua catalog --json` emits the Messages API `tools`
-  payload), cross-tenant overrides are built and demonstrated, and the telemetry
-  fields for multi-run stability exist and are written.
+- **Five of six stretch goals deferred; one was built.** Cross-tenant overrides and
+  the multi-run telemetry fields were already part of the core, so what remained
+  genuinely optional was confidence scoring, richer drift detection, a second
+  surface adapter, artifact diffing — and the agent-facing capability interface.
+  I built the last one, for the reason in the next block. The others are additions
+  to a story that already runs end to end.
+
+**The one stretch goal I did build: the agent-facing capability interface.**
+
+The project's own thesis is *"the model discovers, the artifact becomes a reusable
+capability, deterministic replay is how an AI agent invokes it in production."* Every
+clause but the last had an executable demonstration. `cua catalog` could *print*
+tool definitions and nothing anywhere turned a tool **call** back into a replay, so
+the catalog was a menu with no kitchen. This is the only stretch goal that closes
+the argument rather than extending it, which is why it was worth one milestone.
+
+`src/cua/catalog/tools.py` — the module the architecture named and nobody built:
+
+- `build_catalog()` decides what a calling agent is offered;
+- `ToolCatalog.resolve()` maps a tool name from a model's `tool_use` block back to
+  the artifact it was generated from;
+- `tool_result_block()` renders a `ReplayResult` as something the model reads next
+  turn.
+
+There is deliberately no browser, profile resolution or engine construction here.
+Dispatch belongs to whoever owns the session — otherwise a run an agent started
+could not be handed to a human, because the session would belong to a library.
+
+**The approval decision (R-M7-1): a catalogued capability is an invocable one.**
+`cua catalog` now lists only `approved` capabilities. `--include-drafts` shows the
+rest, marked, and a draft is **never** emitted into the `--json` tools payload.
+
+A tool definition is an *offer*. Listing a draft tells a model "you may call this",
+and the call then meets a gate the definition never mentioned. The two ways that
+goes wrong are not symmetrical. A `writes_irreversible` draft fails loudly as
+`IRREVERSIBLE_NOT_AUTHORIZED` — annoying, and the model can do nothing about it,
+because approval is a human act it cannot perform. A `read_only` draft **succeeds**,
+which is worse: unreviewed automation runs against the back-office application and
+the only evidence the review gate was skipped is a field nobody read. So the gate
+moves to where disagreement is cheap, and `approval_state` stops being a label. It
+is a narrowing of what an *agent* is told exists, not a new refusal — `cua replay`
+still runs a read-only draft when asked directly, which is the reviewer's own path.
+
+**The four variants survive the trip.** `is_error` on a tool result is set for
+`failed` only. A `business_outcome` returned as an error is the brief's own trap
+arriving one layer later than usual, and it reads to the model as "you did something
+wrong" — which for "that member does not exist" is a lie. Each payload also carries
+a `guidance` line naming the variant, because a model handed a bare JSON blob will
+guess. `Success` renders from `evidence_outputs` rather than `outputs`: a tool result
+**is** a prompt on the caller's next turn, so the redaction rule applies to it.
+
+**The round trip, with nothing staged** — `uv run python scripts/watch_agent_call.py`
+shells out to `cua catalog --json`, sends the result as `tools` on a real Messages
+API call, dispatches the model's `tool_use` to the M3 engine, and returns the result
+as a `tool_result`. Two Sonnet calls, ~$0.01; Sonnet rather than Opus because this
+demonstrates tool selection, not agentic discovery. On a real run the model asked
+*"What's the savings balance for member 12345?"*, chose `member_lookup_balance`, and
+got `{"savings_balance": "4210.75"}` back through the engine. With `--bad-argument`
+it declines before calling — the `^\d{5}$` is in the schema it was handed — and the
+forged call it would have had to make comes back as `PARAM_INVALID` in 34 ms with no
+browser navigation. Defence in depth, and the second layer does not depend on the
+model's judgement.
+
+The script also re-walks the replay path's import graph **with `anthropic` loaded in
+the same process**. The suite's clean-interpreter test proves the modules do not
+import a client; it cannot prove the more interesting thing, which is that a model
+choosing the capability does not put a model inside it.
 
 **Not chosen — rejected, with reasons.**
 
@@ -378,13 +441,19 @@ rather than screens.
 
 **Known limitations, stated rather than hidden.**
 
-- **The capability description is the discovery goal, verbatim.** One of my goals
-  contained an exploratory instruction ("search for a member that does not exist,
-  so you can see how it reports that"), so that capability's tool description
-  describes the *recording* rather than the capability. Naming a capability well
-  from its own transcript is a job for the authoring review pass, not for a string
-  slice. The title no longer truncates mid-word; the description was left faithful
-  to what was asked rather than quietly rewritten.
+- **The capability description is the discovery goal, verbatim** — and the agent
+  interface proved it costs something. One of my goals contained an exploratory
+  instruction ("search for a member that does not exist, so you can see how it
+  reports that"), so that capability's tool description describes the *recording*
+  rather than the capability. With the round trip built, this stopped being a
+  cosmetic complaint: on one run the model read the description and spent a replay
+  looking up member 99999 before answering the question actually asked, and on
+  another it named the text as an embedded instruction it declined to obey. A
+  discovery goal is written for the model that will explore; a tool description is
+  read by the agent that will invoke. The recorder conflates the two audiences.
+  The fix is either a re-record with a clean goal or a corrected version of the
+  artifact — both are reviewer decisions, so this is reported rather than patched
+  behind the content hash.
 - **`member.open_subaccount` ships `verified_by_replay: false`**, on purpose:
   verifying an irreversible capability means performing it a second time, the
   application correctly refuses the duplicate, and the artifact then looks broken

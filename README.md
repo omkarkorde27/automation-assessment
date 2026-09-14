@@ -27,7 +27,7 @@ cp .env.example .env             # fixture credentials (fake) + optional API key
 else in this README runs offline.**
 
 ```bash
-uv run pytest                    # 407 tests, no API key required
+uv run pytest                    # 431 tests, no API key required
 ```
 
 ---
@@ -43,12 +43,38 @@ uv run cua serve-app             # mockbank on :8800
 ### 1. What a calling agent sees
 
 ```bash
-uv run cua catalog
+uv run cua catalog               # on a fresh clone this lists NOTHING. That is the point.
+uv run cua catalog --include-drafts
 uv run cua catalog --json        # the Messages API `tools` payload
 ```
 
 Typed inputs, typed outputs, declared business outcomes — generated from the
 artifact, never hand-written, and no model involved at call time.
+
+**Only `approved` capabilities are listed** (R-M7-1). Both committed artifacts ship
+as drafts, so the default catalog is empty and says so. A tool definition is an
+*offer*: offering a draft means a model calls something nobody reviewed, and for a
+read-only capability nothing would stop it. `--include-drafts` shows them, marked,
+for review; a draft never reaches the `--json` payload. `cua approve` is the gate.
+
+### 1b. …and a real model calling one
+
+```bash
+uv run python scripts/watch_agent_call.py              # needs ANTHROPIC_API_KEY
+uv run python scripts/watch_agent_call.py --bad-argument
+uv run python scripts/watch_agent_call.py --headed
+```
+
+The whole last mile, with nothing staged: `cua catalog --json` is shelled out for
+real, sent as `tools` to Sonnet with *"What's the savings balance for member
+12345?"*, and the model's `tool_use` is resolved back to its artifact and handed to
+the same replay engine everything else uses. The result comes back as a
+`tool_result` the model answers from.
+
+Two model calls, roughly a cent — Sonnet, because this demonstrates **tool
+selection**, not agentic discovery. The model chooses *which* capability; it is not
+in the loop while the capability runs, and the script re-walks the replay path's
+import graph with `anthropic` loaded in the same process to show it.
 
 ### 2. Deterministic replay, and the four result variants
 
@@ -173,6 +199,7 @@ src/cua/
   artifact/        the capability contract, its store, and the recorder
   profiles/        product profile + tenant overlay, merge, fingerprint/drift
   conditions/      the condition DSL — checkpoints as data, not callbacks
+  catalog/         artifact -> tool definition, tool call -> replay (R-M7-1)
   replay/          the engine, the evaluation ladder, the four-variant result
   discovery/       the LLM loop (the only thing that imports anthropic)
   policy/          allowlist, risk tiers, redaction

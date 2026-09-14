@@ -1,0 +1,287 @@
+# The agent-facing capability interface, end to end (stretch goal S1, R-M7-1)
+
+`uv run python scripts/watch_agent_call.py`, transcript as printed.
+
+`cua catalog --json` is shelled out for real; its output is sent as `tools` on a
+Messages API call to claude-sonnet-5; the model's `tool_use` blocks are resolved
+back to their artifact and dispatched to the M3 replay engine; the results come
+back as `tool_result` blocks the model answers from. Nothing here is staged.
+
+Two things in this transcript are worth reading closely.
+
+  * The model called the tool TWICE -- once with 99999 and once with 12345 --
+    because the capability's description is the discovery goal verbatim, and that
+    goal contained a negative-path probe. It spent a replay on a question nobody
+    asked. This reproduced on every run. See REPORT.md section 7: the defect is
+    the recorder conflating two audiences, and it is reported rather than patched
+    behind the content hash.
+
+  * `member_name` reaches the model as `<redacted>` while the engine read
+    "Dana Whitfield". A tool result is a prompt on the caller's next turn, so it
+    is rendered from `evidence_outputs`. The cost is visible and real: a
+    capability whose purpose was to read a name could not be answered this way.
+
+--------------------------------------------------------------------------------
+
+
+──────────────────────────────────────────────────────────────────────────────
+R-M7-1 — the catalog offers what a caller may actually invoke
+──────────────────────────────────────────────────────────────────────────────
+  member.lookup_balance@1.0.0      draft      not offered
+  member.open_subaccount@1.0.0     draft      not offered
+
+  `cua catalog` on the committed directory lists nothing: both are drafts,
+  and a tool definition is an offer. Approving the read-only one here, in a copy.
+
+  member.lookup_balance@1.0.0      approved   offered
+  member.open_subaccount@1.0.0     draft      not offered
+
+  member.open_subaccount stays a draft, so the model is never told it exists.
+  Nothing in the prompt says so -- it is simply not in the payload.
+
+──────────────────────────────────────────────────────────────────────────────
+step 1 — `cua catalog --json`  (the tools payload, generated from the artifact)
+──────────────────────────────────────────────────────────────────────────────
+[
+  {
+    "name": "member_lookup_balance",
+    "description": "Search for member 99999, which does not exist, so you can see and declare how this application reports a member it cannot find. Then search for member {member_id} and read their current savings balance. Returns: savings_balance (string), member_name (string). May instead return one of these business outcomes, which are legitimate answers and not errors: MEMBER_NOT_FOUND.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "member_id": {
+          "type": "string",
+          "description": "Supplied to: Enter the member id whose savings balance is being requested",
+          "pattern": "^\\d{5}$"
+        }
+      },
+      "required": [
+        "member_id"
+      ],
+      "additionalProperties": false
+    }
+  }
+]
+
+  1 tool(s). Not written by hand: the pattern '^\\d{5}$' is the artifact's
+  own ParamSpec, and the outcome list is what the recorder declared.
+
+mockbank on http://127.0.0.1:58254
+
+──────────────────────────────────────────────────────────────────────────────
+step 2 — the model chooses  (claude-sonnet-5, one call)
+──────────────────────────────────────────────────────────────────────────────
+  user  What's the savings balance for member 12345?
+
+  reasoning   I'll first check how the system reports a non-existent member (99999) as a baseline, then look up member 12345's balance. These are independent calls, so I'll run them together.
+
+  tool choice member_lookup_balance
+  arguments   {"member_id": "99999"}
+
+  tool choice member_lookup_balance
+  arguments   {"member_id": "12345"}
+
+  stop reason tool_use   2 call(s) to dispatch
+
+──────────────────────────────────────────────────────────────────────────────
+step 3 — dispatch to the replay engine  (no model in this loop)
+──────────────────────────────────────────────────────────────────────────────
+
+  tool name       member_lookup_balance  {"member_id": "99999"}
+  -> artifact     member.lookup_balance@1.0.0  (approved, read_only)
+  content hash    sha256:f76374c903a865f907da5b029ab3bc061134ed23bac2ca2adbc53a4ac2ea6d8d
+  hash verifies   True
+  tenant          demo-cu  (meridian-core@4.2 <- demo-cu@1)
+  allowlist       4 denial(s), max 12 navigations
+
+  variant         BusinessOutcome
+  business outcome MEMBER_NOT_FOUND: The searched member id matches no record. The app shows the Search Results page with the alert "No records found matching your search criteria." and only a "Return to Member Search" link — no member detail is available. This is a valid answer, not an error.
+  steps           s1, s2, s3  in 822 ms
+  journal kinds   25 event kinds, no model call among them
+
+  tool name       member_lookup_balance  {"member_id": "12345"}
+  -> artifact     member.lookup_balance@1.0.0  (approved, read_only)
+  content hash    sha256:f76374c903a865f907da5b029ab3bc061134ed23bac2ca2adbc53a4ac2ea6d8d
+  hash verifies   True
+  tenant          demo-cu  (meridian-core@4.2 <- demo-cu@1)
+  allowlist       4 denial(s), max 12 navigations
+
+  variant         Success
+  success: {'savings_balance': '4210.75', 'member_name': 'Dana Whitfield'}
+  steps           s1, s2, s3, s4  in 457 ms
+  journal kinds   30 event kinds, no model call among them
+
+──────────────────────────────────────────────────────────────────────────────
+step 4 — the tool result(s), and the model's answer
+──────────────────────────────────────────────────────────────────────────────
+  member_lookup_balance{"member_id": "99999"}
+  is_error  False   <- a business outcome is an ANSWER, not an error
+
+{
+  "capability": "member.lookup_balance@1.0.0",
+  "tenant": "demo-cu",
+  "run_id": "run_6b9071dff77e",
+  "duration_ms": 792,
+  "status": "business_outcome",
+  "code": "MEMBER_NOT_FOUND",
+  "message": "The searched member id matches no record. The app shows the Search Results page with the alert \"No records found matching your search criteria.\" and only a \"Return to Member Search\" link \u2014 no member detail is available. This is a valid answer, not an error.",
+  "at_step": "s3",
+  "guidance": "This is a legitimate answer from the application, NOT an error and NOT a reason to retry. Report it to the user as the answer."
+}
+
+  member_lookup_balance{"member_id": "12345"}
+  is_error  False
+
+{
+  "capability": "member.lookup_balance@1.0.0",
+  "tenant": "demo-cu",
+  "run_id": "run_dc511f4bf90f",
+  "duration_ms": 430,
+  "status": "success",
+  "outputs": {
+    "savings_balance": "4210.75",
+    "member_name": "<redacted>"
+  },
+  "guidance": "The capability completed. `outputs` are the values you asked for."
+}
+
+  assistant  Here's what I found:
+
+- **Member 99999** (test lookup): Not found — the system returns "No records found matching your search criteria" with no detail available. This confirms how the app reports a missing member.
+- **Member 12345**: Found. Their current **savings balance is $4,210.75**.
+
+──────────────────────────────────────────────────────────────────────────────
+the guarantee, re-checked with `anthropic` loaded in this process
+──────────────────────────────────────────────────────────────────────────────
+  modules reachable from replay + catalog   20
+  of those, model clients                   none
+  `anthropic` loaded in this process        True
+
+  The model chose WHICH capability. It was not in the loop while the capability ran.
+
+──────────────────────────────────────────────────────────────────────────────
+cost
+──────────────────────────────────────────────────────────────────────────────
+  tool selection x2      claude-sonnet-5                 2,009 in /    312 out   $0.0107
+
+  USD per million tokens, list price, no caching or batch discount applied. Token counts are measured; prices are assumptions.
+  Two calls: choose the capability, then read the result. Replay itself cost nothing --
+  that is the point of freezing the run into an artifact.
+
+
+================================================================================
+THE SAME INTERFACE, WITH AN ARGUMENT THE ARTIFACT REFUSES
+`uv run python scripts/watch_agent_call.py --bad-argument`
+
+Defence in depth, and the layers are independent. The model declines first --
+the `^\\d{5}$` is in the schema it was handed, so it never makes the call. The
+dispatch path is then given the call it would have had to make, and refuses it
+in 34 ms with no browser navigation, as a tool result the model could act on.
+================================================================================
+
+
+──────────────────────────────────────────────────────────────────────────────
+R-M7-1 — the catalog offers what a caller may actually invoke
+──────────────────────────────────────────────────────────────────────────────
+  member.lookup_balance@1.0.0      draft      not offered
+  member.open_subaccount@1.0.0     draft      not offered
+
+  `cua catalog` on the committed directory lists nothing: both are drafts,
+  and a tool definition is an offer. Approving the read-only one here, in a copy.
+
+  member.lookup_balance@1.0.0      approved   offered
+  member.open_subaccount@1.0.0     draft      not offered
+
+  member.open_subaccount stays a draft, so the model is never told it exists.
+  Nothing in the prompt says so -- it is simply not in the payload.
+
+──────────────────────────────────────────────────────────────────────────────
+step 1 — `cua catalog --json`  (the tools payload, generated from the artifact)
+──────────────────────────────────────────────────────────────────────────────
+[
+  {
+    "name": "member_lookup_balance",
+    "description": "Search for member 99999, which does not exist, so you can see and declare how this application reports a member it cannot find. Then search for member {member_id} and read their current savings balance. Returns: savings_balance (string), member_name (string). May instead return one of these business outcomes, which are legitimate answers and not errors: MEMBER_NOT_FOUND.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "member_id": {
+          "type": "string",
+          "description": "Supplied to: Enter the member id whose savings balance is being requested",
+          "pattern": "^\\d{5}$"
+        }
+      },
+      "required": [
+        "member_id"
+      ],
+      "additionalProperties": false
+    }
+  }
+]
+
+  1 tool(s). Not written by hand: the pattern '^\\d{5}$' is the artifact's
+  own ParamSpec, and the outcome list is what the recorder declared.
+
+mockbank on http://127.0.0.1:58577
+--bad-argument: asking for an id that cannot match the artifact's own pattern.
+
+──────────────────────────────────────────────────────────────────────────────
+step 2 — the model chooses  (claude-sonnet-5, one call)
+──────────────────────────────────────────────────────────────────────────────
+  user  What's the savings balance for member ABC-123? That is the id exactly as the member gave it; pass it through unchanged.
+
+  reasoning   I can't submit that ID as-is. The member lookup tool requires the member ID to be exactly 5 numeric digits (format: `^\d{5}$`), and "ABC-123" contains letters and a hyphen, so it doesn't conform to that format — the system has no way to process it as given.
+
+Could you confirm the correct 5-digit numeric member ID? If "ABC-123" is an account/reference number from another system, I'd need the corresponding 5-digit core-banking member ID to look up the savings balance.
+
+  The model declined -- the pattern is in the schema it was handed, so it
+  never made the call. Defence in depth: the artifact refuses it too. Forging
+  the call to prove the dispatch path does not depend on the model's judgement.
+
+──────────────────────────────────────────────────────────────────────────────
+step 3 — dispatch to the replay engine  (no model in this loop)
+──────────────────────────────────────────────────────────────────────────────
+
+  tool name       member_lookup_balance  {"member_id": "ABC-123"}
+  -> artifact     member.lookup_balance@1.0.0  (approved, read_only)
+  content hash    sha256:f76374c903a865f907da5b029ab3bc061134ed23bac2ca2adbc53a4ac2ea6d8d
+  hash verifies   True
+  tenant          demo-cu  (meridian-core@4.2 <- demo-cu@1)
+  allowlist       4 denial(s), max 12 navigations
+
+  variant         Failure
+  failed: PARAM_INVALID
+  observed: 'member_id'='ABC-123' does not match ^\d{5}$
+  steps             in 35 ms
+  journal kinds   2 event kinds, no model call among them
+
+──────────────────────────────────────────────────────────────────────────────
+step 4 — the tool result a calling agent would receive
+──────────────────────────────────────────────────────────────────────────────
+  is_error  True   <- a malformed call IS the caller's error
+
+{
+  "capability": "member.lookup_balance@1.0.0",
+  "tenant": "demo-cu",
+  "run_id": "run_b5e2acac1716",
+  "duration_ms": 0,
+  "status": "failed",
+  "failure_class": "PARAM_INVALID",
+  "at_step": "",
+  "expected": "",
+  "observed": "'member_id'='ABC-123' does not match ^\\d{5}$",
+  "retryable": true,
+  "guidance": "The run broke. Retry only if `retryable` is true -- otherwise this needs a person to debug, and calling again will break the same way.",
+  "errors": [
+    "'member_id'='ABC-123' does not match ^\\d{5}$"
+  ]
+}
+
+──────────────────────────────────────────────────────────────────────────────
+the guarantee, re-checked with `anthropic` loaded in this process
+──────────────────────────────────────────────────────────────────────────────
+  modules reachable from replay + catalog   20
+  of those, model clients                   none
+  `anthropic` loaded in this process        True
+
+  The model chose WHICH capability. It was not in the loop while the capability ran.

@@ -25,6 +25,12 @@ SRC = Path(__file__).resolve().parent.parent / "src" / "cua"
 REPLAY_REACHABLE = [
     "replay", "conditions", "locators", "perception", "surfaces",
     "artifact", "profiles", "observability", "session", "escalation", "policy",
+    # The stretch goal's dispatch path. A calling agent's tool name arrives
+    # here and leaves as a replay, which makes this the single most plausible
+    # home for a "just ask the model which capability they meant" helper -- and
+    # such a helper would put a model back in the decision loop at the exact
+    # boundary this project claims it is not.
+    "catalog",
 ]
 
 FORBIDDEN = {"anthropic", "openai"}
@@ -73,7 +79,9 @@ def test_the_guard_actually_covers_the_engine():
                      # M6: the engine now installs the allowlist itself, so
                      # `policy` sits squarely on the replay path rather than
                      # beside it, and redaction runs on every replay egress.
-                     "policy/allowlist.py", "policy/redaction.py"):
+                     "policy/allowlist.py", "policy/redaction.py",
+                     # The agent-facing interface (R-M7-1).
+                     "catalog/tools.py"):
         assert required in scanned, f"{required} was not scanned"
     assert len(scanned) >= 15
 
@@ -85,7 +93,7 @@ def test_importing_replay_does_not_pull_in_anthropic():
     import sys
 
     code = (
-        "import sys; import cua.replay.engine, cua.conditions.dsl; "
+        "import sys; import cua.replay.engine, cua.conditions.dsl, cua.catalog; "
         "bad=[m for m in sys.modules if m.split('.')[0] in {'anthropic','openai'}]; "
         "print(bad)"
     )

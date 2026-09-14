@@ -565,16 +565,59 @@ class CapabilityArtifact(BaseModel):
             "required": [k for k, v in self.outputs.items() if not v.optional],
         }
 
+    @property
+    def tool_name(self) -> str:
+        """`member.lookup_balance` -> `member_lookup_balance`.
+
+        The Messages API restricts tool names to `[a-zA-Z0-9_-]` and a capability
+        id is dotted. Defined once, here, because `catalog` has to map the name
+        back to this artifact and two spellings of one rule is how a dispatcher
+        starts failing to find a tool it just offered.
+        """
+        return self.capability.id.replace(".", "_").replace("/", "_")
+
     def as_tool_definition(self) -> dict:
         """Anthropic tool-use shape, so a calling agent can invoke this
-        capability by name with typed args."""
-        outcomes = ", ".join(o.code for o in self.outcomes)
-        desc = self.capability.description or self.capability.title
-        if outcomes:
-            desc += f" May return these business outcomes instead of success: {outcomes}."
+        capability by name with typed args.
+
+        The description carries what the Messages API has no field for. A tool
+        definition is `{name, description, input_schema}` and nothing else, so
+        the three things a caller cannot afford to learn by trial -- what comes
+        back, which non-success answers are legitimate, and whether invoking
+        this commits something -- have to be prose or they are nowhere.
+
+        Stating the outputs here is also what gives `output_json_schema()` a
+        read site. Until this, the method was defined, correct, and consumed by
+        nothing: a calling agent was handed typed *inputs* and left to discover
+        the shape of the answer by looking at one.
+        """
+        desc = (self.capability.description or self.capability.title).strip()
+        parts = [desc] if desc else []
+
+        outs = self.output_json_schema().get("properties", {})
+        if outs:
+            rendered = ", ".join(
+                f"{name} ({spec.get('type', 'string')})" for name, spec in outs.items())
+            parts.append(f"Returns: {rendered}.")
+
+        if self.outcomes:
+            codes = ", ".join(o.code for o in self.outcomes)
+            # Spelled out rather than listed, because the failure mode this
+            # guards against is a caller treating MEMBER_NOT_FOUND as a crash --
+            # the trap the brief names in its own glossary.
+            parts.append(
+                f"May instead return one of these business outcomes, which are "
+                f"legitimate answers and not errors: {codes}.")
+
+        if self.capability.risk_tier is CapabilityRisk.WRITES_IRREVERSIBLE:
+            parts.append(
+                "This capability performs an IRREVERSIBLE write. It runs only "
+                "when the artifact is approved and the caller passes explicit "
+                "confirmation; invoking it without that is refused, not queued.")
+
         return {
-            "name": self.capability.id.replace(".", "_"),
-            "description": desc,
+            "name": self.tool_name,
+            "description": " ".join(parts),
             "input_schema": self.input_json_schema(),
         }
 

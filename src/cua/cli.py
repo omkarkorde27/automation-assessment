@@ -121,7 +121,10 @@ def serve_console(
 @app.command("catalog")
 def catalog_cmd(
     as_json: bool = typer.Option(False, "--json", help="Emit the tool definitions themselves."),
-    approved_only: bool = typer.Option(False, help="Only capabilities cleared for unattended use."),
+    include_drafts: bool = typer.Option(
+        False, "--include-drafts",
+        help="Also show capabilities nobody has approved. For review: a draft is "
+             "listed, marked, and never emitted into the --json tools payload."),
     capabilities_root: str = typer.Option("capabilities", help="Where artifacts live."),
 ) -> None:
     """What a calling agent sees: the recorded capabilities as typed tools.
@@ -132,33 +135,49 @@ def catalog_cmd(
     outcomes it must branch on -- generated from the artifact, never written by
     hand, and never involving a model at call time.
 
+    Only APPROVED capabilities are listed (R-M7-1). A tool definition is an
+    offer, and offering a draft means a model calls something nobody reviewed.
+    `--include-drafts` shows them for review.
+
     `--json` is the payload you would hand to the Messages API `tools` array.
     """
     import json as _json
 
-    from .artifact.schema import ApprovalState
     from .artifact.store import ArtifactStore
+    from .catalog import build_catalog
 
     store = ArtifactStore(capabilities_root)
-    artifacts = [
-        a for a in store.list()
-        if not approved_only or a.capability.approval_state is ApprovalState.APPROVED
-    ]
-    if not artifacts:
+    all_artifacts = store.list()
+    catalog = build_catalog(all_artifacts, include_drafts=include_drafts)
+
+    if not all_artifacts:
         typer.echo("no capabilities recorded yet -- run `cua discover`.", err=True)
+        raise typer.Exit(1)
+    if not catalog.listing():
+        # Not "nothing recorded". The distinction is the whole of R-M7-1: these
+        # capabilities exist and are deliberately not being offered.
+        drafts = len(all_artifacts)
+        typer.echo(
+            f"0 of {drafts} recorded capabilit{'y' if drafts == 1 else 'ies'} are "
+            f"approved, so none is offered to a calling agent.\n"
+            f"A draft is a recording nobody has reviewed.\n"
+            f"  cua catalog --include-drafts     read them\n"
+            f"  cua approve <capability-id>      the gate", err=True)
         raise typer.Exit(1)
 
     if as_json:
-        typer.echo(_json.dumps([a.as_tool_definition() for a in artifacts], indent=2))
+        typer.echo(_json.dumps(catalog.definitions(), indent=2))
         raise typer.Exit(0)
 
-    for artifact in artifacts:
+    for entry in catalog.listing():
+        artifact = entry.artifact
         meta = artifact.capability
-        typer.echo(f"{artifact.ref}")
+        mark = "" if entry.invocable else "   [DRAFT -- not offered to callers]"
+        typer.echo(f"{artifact.ref}{mark}")
         typer.echo(f"  {meta.title or meta.description}")
         typer.echo(f"  risk        {meta.risk_tier.value}   "
                    f"approval {meta.approval_state.value}")
-        typer.echo(f"  tool name   {artifact.as_tool_definition()['name']}")
+        typer.echo(f"  tool name   {artifact.tool_name}")
         required = artifact.input_json_schema().get("required", [])
         for name, spec in artifact.inputs.items():
             flags = []
