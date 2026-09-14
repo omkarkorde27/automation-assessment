@@ -21,8 +21,10 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from cua.artifact.schema import Step, StepAction
-from cua.conditions.model import UrlCondition, UrlMatch
+from cua.artifact.schema import CapabilityArtifact, Step, StepAction
+from cua.conditions.model import (
+    AllCondition, ElementCondition, ElementMatch, UrlCondition, UrlMatch,
+)
 from cua.observability import MemoryJournal
 from cua.profiles import ProfileRepository
 from cua.replay import (
@@ -102,9 +104,19 @@ async def signed_in(page, live_server):
     return page
 
 
-def run_with(page, artifact, profile, journal, tenant="demo-cu"):
+def run_with(page, artifact, profile, journal, tenant="demo-cu",
+             confirm_irreversible=True):
+    """An engine for the flow under test.
+
+    `confirm_irreversible` defaults to True here because these tests are about
+    resume behaviour, not about M6's authorization gate -- without it every
+    write-flow test below would stop at the gate and prove nothing about the
+    thing it is named after. The gate itself is exercised in `test_policy.py`,
+    where refusing is the point rather than the obstacle.
+    """
     return ReplayEngine(WebSurface(page), artifact, profile, journal=journal,
-                        credentials=CREDS, tenant=tenant)
+                        credentials=CREDS, tenant=tenant,
+                        confirm_irreversible=confirm_irreversible)
 
 
 # --------------------------------------------------------------------------
@@ -323,3 +335,141 @@ async def test_if_a_resume_ever_re_submits_a_commit_the_declared_outcome_catches
     assert result.at_step == "s10"
     assert result.ok is True, "the institution already holds it -- an answer, not a fault"
     assert data.OPENED == [], "nothing may be written when the app reports a duplicate"
+
+
+# --------------------------------------------------------------------------
+# R-M6-1's upgrade: Step.completion_witness
+#
+# Default-deny (above) is the floor: when a resume would replay an irreversible
+# step, escalate. A witness turns the unanswerable question into an observable
+# one. In this application the observable consequence of opening a sub-account
+# is that a row for it appears on the member's record -- and the opening balance
+# is what makes that row identifiable, since the app labels every new
+# sub-account "Savings" and the member already has one.
+# --------------------------------------------------------------------------
+
+#: "A sub-account with this opening balance now appears on the member's record."
+#: An ordinary Condition in the same vocabulary as every checkpoint, which is
+#: the point: a witness costs no new concepts and is reviewable in the same read.
+OPENED_50 = AllCondition(all=(
+    UrlCondition(url=UrlMatch(matches=r"/members/\d+$"), frame=CONTENT),
+    ElementCondition(element=ElementMatch(role="cell", name_matches=r"\$50\.00"),
+                     frame=CONTENT),
+))
+
+
+def with_witness(artifact, step_id="s10", witness=OPENED_50):
+    steps = tuple(s.model_copy(update={"completion_witness": witness}) if s.id == step_id else s
+                  for s in artifact.steps)
+    return artifact.model_copy(update={"steps": steps})
+
+
+async def test_a_witness_that_says_the_write_did_not_land_lets_the_run_continue(
+    signed_in, profile, live_server
+):
+    """R-M6-1, the valuable half -- and the half a reader expects to be the
+    other one.
+
+    The session dies on s10 itself. Without a witness this escalates, correctly,
+    because "rejected before writing" and "wrote, then lost the response" are
+    indistinguishable from outside. With one, they are distinguishable: the
+    member's record shows no $50.00 account, so the write did not land, so
+    replaying it is not a duplicate. Nobody is paged and the run completes.
+
+    Asserted against the fixture's ledger, because the failure this could
+    introduce -- a witness that reads false when the write DID land -- would
+    show up as two accounts and a Success.
+    """
+    journal = ArmAtStep(live_server, "demo-cu", "session_timeout", "s10")
+    artifact = with_witness(open_subaccount_artifact())
+    result = await run_with(signed_in, artifact, profile, journal).run(SUBACCOUNT_PARAMS)
+
+    assert journal.armed
+    assert isinstance(result, Success), getattr(result, "describe", lambda: result)()
+    assert len(data.OPENED) == 1, f"opened {len(data.OPENED)} times: {data.OPENED}"
+
+    absent = journal.of("resume.witness_absent")
+    assert absent and absent[0].data["step"] == "s10"
+    assert journal.of("resume.blocked_irreversible") == [], "nobody should have been paged"
+
+
+async def test_a_witness_that_says_the_write_landed_skips_the_step(
+    signed_in, profile, live_server
+):
+    """R-M6-1, the other half, and the honest limit that comes with it.
+
+    s10 completes; the session dies on s11. Re-authentication lands back on the
+    member record, where the $50.00 row is now visible -- so the engine can see
+    that the write landed and skips s10 rather than paging a human about it.
+
+    The run does NOT go on to succeed, and that is not a bug being tolerated: the
+    account number this capability returns is only ever on the screen the write
+    produced, and skipping the write means never seeing that screen. A witness
+    makes SKIPPING safe; it does not make the rest of the flow possible. What it
+    buys here is precise -- exactly one account, no second write, and no page-out
+    for a question the screen already answered.
+    """
+    artifact = with_witness(open_subaccount_artifact())
+    after = Step(
+        id="s11", intent="Return to the member record",
+        action=StepAction(type="click", target=RETURN_TO_MEMBER_LINK),
+        risk="navigate",
+        checkpoint=UrlCondition(url=UrlMatch(matches=r"/members/\d+$"), frame=CONTENT),
+    )
+    artifact = artifact.model_copy(update={"steps": artifact.steps + (after,)})
+
+    journal = ArmAtStep(live_server, "demo-cu", "session_timeout", "s11")
+    result = await run_with(signed_in, artifact, profile, journal).run(SUBACCOUNT_PARAMS)
+
+    assert len(data.OPENED) == 1, f"opened {len(data.OPENED)} times: {data.OPENED}"
+    satisfied = journal.of("resume.witness_satisfied")
+    assert satisfied and satisfied[0].data["step"] == "s10"
+    assert satisfied[0].data["seen_at"] == "s6", (
+        "the witness was answered on the member record the flow replays through, "
+        "not on the dashboard the resume landed on -- which is the whole reason "
+        "witnesses are polled forward rather than evaluated once at the rewind"
+    )
+    assert journal.of("resume.blocked_irreversible") == [], \
+        "the screen answered the question, so nobody should have been paged"
+
+    skipped = [e for e in journal.of("step.skipped") if e.data["step"] == "s10"]
+    assert skipped and "witness" in skipped[0].data["reason"]
+    assert [e.data["step"] for e in journal.of("step.started")].count("s10") == 1, \
+        "s10 ran once, on the first pass, and was never re-entered"
+
+    # The declared limit, asserted rather than described: s11 wanted the link on
+    # the screen the write produced, and skipping the write means never seeing
+    # that screen.
+    assert isinstance(result, Failure)
+    assert result.at_step == "s11"
+
+
+async def test_a_step_with_no_witness_still_defaults_to_deny(
+    signed_in, profile, live_server
+):
+    """The upgrade must not weaken the floor. Where no witness exists -- a write
+    whose only trace is a nightly batch -- escalation stays the answer."""
+    journal = ArmAtStep(live_server, "demo-cu", "session_timeout", "s10")
+    result = await run_with(signed_in, open_subaccount_artifact(), profile,
+                            journal).run(SUBACCOUNT_PARAMS)
+
+    assert isinstance(result, Escalated)
+    assert result.reason_class == "IRREVERSIBLE_INTERRUPTED"
+    assert journal.of("resume.witness_satisfied") == []
+    assert journal.of("resume.witness_absent") == []
+
+
+def test_a_witness_on_a_reversible_step_is_rejected_at_authoring_time():
+    """A witness answers "did this write land", which is only a question for an
+    irreversible step. One declared anywhere else reads as protection that will
+    never run, and unread protection is worse than none."""
+    artifact = open_subaccount_artifact()
+    # Validated, not model_copy'd: `model_copy` skips validators by design, and
+    # the check that matters is the one an artifact loaded from disk goes
+    # through.
+    with pytest.raises(ValueError) as exc:
+        CapabilityArtifact.model_validate(
+            with_witness(artifact, step_id="s9").model_dump(mode="json"))
+    assert "completion_witness" in str(exc.value)
+    assert "submit_irreversible" in str(exc.value)
+

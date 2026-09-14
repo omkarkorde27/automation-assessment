@@ -147,6 +147,9 @@ def discover_cmd(
                                               "single token on the real model."),
     profiles_root: str = typer.Option("profiles", help="Profile directory."),
     capabilities_root: str = typer.Option("capabilities", help="Where to save the artifact."),
+    policy_file: str = typer.Option("config/policy.yaml", "--policy",
+                                    help="Allowlist policy. Enforced inside act(); a missing "
+                                         "file is an error, not an open door."),
 ) -> None:
     """Discover a flow with the LLM, record it as a capability, and verify it.
 
@@ -172,12 +175,14 @@ def discover_cmd(
                         or DEFAULT_REVIEWER_MODEL),
         preflight=preflight,
         profiles_root=profiles_root, capabilities_root=capabilities_root,
+        policy_file=policy_file,
     ))
 
 
 async def _run_discovery(
     *, goal, capability_id, tenant, base_url, allow_irreversible, max_steps, headed,
     verify, effort, model, reviewer_model, preflight, profiles_root, capabilities_root,
+    policy_file,
 ) -> None:
     from playwright.async_api import async_playwright
 
@@ -188,6 +193,7 @@ async def _run_discovery(
     from .discovery.model import AnthropicClient
     from .discovery.session import discover
     from .profiles.resolve import ProfileRepository
+    from .policy.allowlist import load_policy
     from .replay.engine import CredentialResolver
     from .surfaces.web_playwright import WebSurface
 
@@ -202,6 +208,11 @@ async def _run_discovery(
 
     product_ref = resolved.profile.extends or resolved.profile.ref
     base = repository.load_raw(product_ref)
+
+    # Loaded before the client is built, so a malformed policy costs nothing.
+    # `load_policy` raises on a missing file rather than defaulting to "allow
+    # everything" -- a run with no restrictions has to be a file somebody wrote.
+    allowlist = load_policy(policy_file).for_capability(capability_id)
 
     # Preflight BEFORE the client is built, so a control-logic bug costs nothing.
     if preflight:
@@ -223,7 +234,11 @@ async def _run_discovery(
     typer.echo(f"model     {model} (effort={effort}, adaptive thinking)")
     typer.echo(f"reviewer  {reviewer_model}")
     typer.echo(f"policy    irreversible actions "
-               f"{'ALLOWED' if allow_irreversible else 'blocked'}\n")
+               f"{'ALLOWED' if allow_irreversible else 'blocked'}")
+    typer.echo(f"allowlist {policy_file}: {resolved.base_url} + "
+               f"{len(allowlist.allowed_paths)} path rule(s), "
+               f"{len(allowlist.denied_paths)} denial(s), "
+               f"max {allowlist.max_navigations} navigations\n")
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=not headed)
@@ -247,6 +262,7 @@ async def _run_discovery(
                 verify=verify,
                 credentials=CredentialResolver(),
                 reviewer=AnthropicReviewer(client._client, model=reviewer_model),
+                policy=allowlist,
             )
         finally:
             await browser.close()

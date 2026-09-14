@@ -118,11 +118,13 @@ async def discover(
     verify: bool = True,
     credentials: CredentialResolver | None = None,
     reviewer: Reviewer | None = None,
+    policy=None,
 ) -> DiscoveryOutcome:
     agent = DiscoveryAgent(
         surface, client, profile,
         goal=goal, tenant=tenant, limits=limits,
         allow_irreversible=allow_irreversible, model_name=model_name,
+        policy=policy,
     )
     evidence = EvidenceWriter(evidence_root, agent.run.run_id)
     agent.journal = evidence.journal

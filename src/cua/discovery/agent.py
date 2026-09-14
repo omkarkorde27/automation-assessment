@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from ..observability.journal import Journal, MemoryJournal
 from ..perception.model import Observation, UiNode
 from ..policy.redaction import apply_sensitivity, screenshot_masks
+from ..policy.allowlist import AllowlistGuard
 from ..policy.risk import IrreversibleActionGuard, classify
 from ..profiles.resolve import ResolvedProfile
 from ..surfaces.base import Action, ActionType, PolicyDenied, Surface
@@ -67,6 +68,7 @@ class DiscoveryAgent:
         screenshots: bool = True,
         evidence=None,
         broker=None,
+        policy=None,
     ) -> None:
         self.surface = surface
         self.client = client
@@ -78,6 +80,17 @@ class DiscoveryAgent:
         # own guard before acting would be a second enforcement point, and the
         # one inside act() is the one that holds for every caller.
         surface.add_guard(self.guard)
+
+        # The allowlist (Part 3.6). Optional at this seam and mandatory at the
+        # CLI: a test that drives the loop against scripted observations has no
+        # tenant origin to anchor it to, and a real run always does. Same guard
+        # object the replay engine installs -- one enforcement point, two
+        # callers, which is the argument for a choke point stated as code.
+        self.allowlist = None
+        if policy is not None:
+            self.allowlist = AllowlistGuard(policy, base_url=profile.base_url,
+                                            capability_ref=f"discovery:{tenant}")
+            surface.add_guard(self.allowlist)
         self.screenshots = screenshots
         self.evidence = evidence
         """Optional `EvidenceWriter`. Screenshots are saved through it as they

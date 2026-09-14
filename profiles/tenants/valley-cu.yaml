@@ -19,12 +19,50 @@ surface:
   base_url: "http://127.0.0.1:8800/t/valley-cu"
 
 overrides:
-  # This tenant renamed the field. Recorded locators carry a pattern candidate
-  # that already spans both spellings, so no locator override is needed -- the
-  # map exists so the recorder can generate tenant-spanning patterns and so a
-  # reviewer can see the difference is known rather than discovered.
+  # Known label deltas. These feed the RECORDER, which uses them to emit
+  # patterns spanning every tenant's spelling at record time. They do nothing
+  # to an artifact that is already recorded -- which is what `locator_overrides`
+  # below is for, and what the previous version of this comment got wrong.
   label_overrides:
     "member id": "account holder #"
+    "member search": "account holder lookup"
+
+  # Two controls in the recorded `member.lookup_balance` carry only the vendor's
+  # spelling, because the real discovery run happened on demo-cu and nothing at
+  # record time knew this tenant existed. This is exactly the case the overlay
+  # is for: one recording, two institutions, no re-recording.
+  #
+  # Whole bundles, not patched candidates -- an override is then reviewable as
+  # one unit and cannot half-apply.
+  locator_overrides:
+    "member.lookup_balance:member_search_link":
+      target_id: member_search_link
+      frame_path: [{name: nav}]
+      notes: >-
+        Valley calls the screen "Account Holder Lookup". The pattern keeps the
+        vendor spelling as an alternate so this bundle stays correct if they
+        ever revert to the stock label.
+      candidates:
+        - strategy: role_name_exact
+          role: link
+          name: Account Holder Lookup
+        - strategy: role_name_pattern
+          role: link
+          name_pattern: "(?i)^(Account Holder Lookup|Member Search)$"
+
+    "member.lookup_balance:member_id_input":
+      target_id: member_id_input
+      frame_path: [{name: content}]
+      notes: >-
+        Same field, their label. Anchor-relative for the same reason the
+        recording chose it: this form has no `for` attribute, so the row label
+        is the only durable way in.
+      candidates:
+        - strategy: anchor_relative
+          anchor: {text: "Account Holder #"}
+          relation: same_row
+          target_role: textbox
+          occurrence: 0
 
   # Their premium savings product is the default here.
   param_defaults:

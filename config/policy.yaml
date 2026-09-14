@@ -1,0 +1,58 @@
+# Allowlist -- where automation may go and what it may do (plan Part 3.6).
+#
+# Enforced inside `Surface.act()` by `cua.policy.allowlist.AllowlistGuard`, in
+# the pre-resolution pass. It is not a prompt instruction, it is not advisory,
+# and no caller can route around it: the guard is registered on the surface, and
+# the surface is the only thing that can perform an action.
+#
+# Origins are NOT listed here. `allow_profile_origin` means "wherever this
+# tenant's resolved profile says the application lives" -- a committed file
+# cannot know every institution's host, and one that tried would be widened to
+# a wildcard by the third onboarding. What belongs here is the shape of the
+# space inside that origin, which is the same for every tenant on the product.
+#
+# A `capabilities:` block can only NARROW the default: paths must satisfy both
+# lists, action types intersect, budgets take the lower value, and denials
+# union. There is deliberately no syntax for a capability to permit something
+# the default forbids.
+
+version: 1
+
+default:
+  allow_profile_origin: true
+  allowed_origins: []
+
+  # Every real screen in this product lives under a tenant prefix. `/t/<slug>/`
+  # is also what keeps one tenant's flow from wandering into another's data,
+  # which no risk tier or approval state would have caught.
+  allowed_paths:
+    - "^/t/[A-Za-z0-9_-]+(/|$)"
+
+  denied_paths:
+    # The fault-injection control plane. It exists for the demos and the tests;
+    # a flow reaching it would be reconfiguring the application it is driving.
+    - "/__control"
+    # Ending the session mid-flow turns every subsequent step into a login
+    # redirect, and the resulting SESSION_EXPIRED reads like an app fault.
+    - "/logout(/|$)"
+    - "/admin(/|$)"
+
+  permitted_actions: [click, fill, select_option, press_key, navigate, scroll, wait]
+
+  max_navigations: 40
+
+capabilities:
+  # A read-only capability has no business inside the write flow. This is the
+  # narrowing that matters most in review: it is checkable against the artifact
+  # (`capability.risk_tier: read_only`) rather than being a claim about intent.
+  member.lookup_balance:
+    denied_paths:
+      - "/subaccount(/|$)"
+    permitted_actions: [click, fill, press_key, navigate, scroll, wait]
+    max_navigations: 12
+
+  # The write flow needs the sub-account pages, and needs nothing else. Its own
+  # budget is small because the recorded flow is ten steps long: a run that
+  # navigates thirty times is not replaying it.
+  member.open_subaccount:
+    max_navigations: 20

@@ -99,6 +99,18 @@ class ParamSpec(BaseModel):
     """Never serialized into an artifact, journal, screenshot, or prompt. The
     value exists only in memory for the duration of one replay."""
 
+    volatile: bool = False
+    """The value was time-dependent when it was recorded (Part 5.3).
+
+    A date typed during discovery is correct exactly once. Freezing it as a
+    literal produces a capability that back-dates every future run to the day it
+    was recorded -- which an application will usually accept, silently, and
+    which nothing downstream would ever flag. So the recorder promotes such a
+    value to a declared input and marks it here; `default` keeps the recorded
+    value so the flow still runs unattended, and this flag is what tells a
+    reviewer, and a caller reading `input_json_schema()`, that the default is
+    stale by construction rather than merely unspecified."""
+
     def json_schema(self) -> dict:
         """JSON Schema fragment, so a calling agent can discover this capability
         as a typed tool without a second hand-written description."""
@@ -110,9 +122,16 @@ class ParamSpec(BaseModel):
             ParamType.MONEY: {"type": "string", "description": "decimal amount, e.g. 50.00"},
             ParamType.DATE: {"type": "string", "format": "date"},
         }[self.type].copy()
-        if self.description:
+        description = self.description
+        if self.volatile:
+            # Said in the schema, not only in the artifact, because the calling
+            # agent is the one holding a stale default.
+            description = (f"{description} Time-dependent: the recorded default was "
+                           f"correct on the day this was recorded and should be supplied "
+                           f"by the caller.").strip()
+        if description:
             base["description"] = (
-                f"{base.get('description', '')} {self.description}".strip()
+                f"{base.get('description', '')} {description}".strip()
             )
         if self.pattern:
             base["pattern"] = self.pattern
@@ -220,6 +239,27 @@ class Step(BaseModel):
     checkpoint: Condition | None = None
     """Asserted after the action. Without it, replay is assuming the click
     worked rather than confirming it."""
+
+    completion_witness: Condition | None = None
+    """R-M6-1. Observable proof that this step's effect already landed.
+
+    Only meaningful on an irreversible step, and only consulted when a session
+    drop has rewound the flow to a point that would replay it. The default is
+    `None`, which means default-deny: the engine escalates with
+    IRREVERSIBLE_INTERRUPTED rather than guess whether the write took effect.
+
+    With a witness declared, the guess becomes an observation -- "a sub-account
+    with this opening balance now appears on the member's record" -- and the
+    engine decides deterministically instead of paging somebody. It is an
+    ordinary `Condition`, the same vocabulary checkpoints and outcomes use, so
+    it costs no new concepts and it is reviewable in the same read.
+
+    Honest limit, stated where the field is declared: a witness makes SKIPPING
+    the step safe. It does not make the rest of the flow possible -- when the
+    screen the write produced carried data later steps needed, those steps will
+    fail, and that failure is correct. See `Step.optional` for the artifact-side
+    way to say "and this one no longer applies".
+    """
 
     risk: RiskTier = RiskTier.READ_ONLY
     requires_confirmation: bool = False
@@ -461,9 +501,23 @@ class CapabilityArtifact(BaseModel):
     _HASH_EXCLUDE = {"content_hash"}
 
     def hashable(self) -> dict:
-        data = self.model_dump(mode="json", by_alias=True, exclude=self._HASH_EXCLUDE)
-        data["capability"].pop("approval_state", None)
-        data["capability"].pop("created_at", None)
+        # `exclude_defaults` is what makes the format additively evolvable, and
+        # the reason is worth stating: without it, adding ANY optional field to
+        # any nested model re-serializes every artifact ever sealed and breaks
+        # its integrity check -- not because the flow changed but because the
+        # schema grew a field nobody set. That happened, on a one-line addition
+        # to `ElementMatch`, and every committed capability failed to load.
+        #
+        # A field nobody set says nothing, so it does not belong in a hash of
+        # what the flow says. Two artifacts that differ only in a field
+        # explicitly written to its own default mean the same thing and now hash
+        # the same, which is the correct answer rather than a tolerated one.
+        # `SCHEMA_VERSION` remains the signal for a change that is NOT additive.
+        data = self.model_dump(mode="json", by_alias=True, exclude=self._HASH_EXCLUDE,
+                               exclude_defaults=True)
+        # `exclude_defaults` can drop these keys entirely, so pop defensively.
+        data.get("capability", {}).pop("approval_state", None)
+        data.get("capability", {}).pop("created_at", None)
         data.pop("provenance", None)
         return data
 
@@ -609,6 +663,17 @@ class CapabilityArtifact(BaseModel):
             if outcome.after_step and outcome.after_step not in step_ids:
                 raise ValueError(
                     f"outcome '{outcome.code}' references unknown step '{outcome.after_step}'"
+                )
+
+        # A witness is only ever consulted for an irreversible step, so one
+        # declared anywhere else is a misunderstanding rather than a harmless
+        # extra -- it reads as protection that will never run.
+        for step in self.steps:
+            if step.completion_witness is not None and step.risk is not RiskTier.SUBMIT_IRREVERSIBLE:
+                raise ValueError(
+                    f"step '{step.id}' declares a completion_witness but is "
+                    f"'{step.risk.value}'. A witness answers 'did this write land', which "
+                    f"is only a question for submit_irreversible steps."
                 )
 
         # A capability that performs an irreversible action must say so at the

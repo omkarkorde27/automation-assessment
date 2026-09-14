@@ -221,15 +221,65 @@ sensitivity:
         scope: {anchor: {text: Date of Birth}, relation: within_row}
       classification: pii_dob
       mask: [screenshot, text]
+    # Account numbers, in the two places this product renders them. Both rules
+    # replace one that never matched anything: it asked for a table whose
+    # ANCHOR was "Account Number", and `within_table` matches a grid by its
+    # PANEL header, which here is "Accounts". Committed, defaulted, and inert --
+    # `classify()` returned None on the exact cell it was aimed at.
+    #
+    # `mask: [text]` and not `[screenshot, text]` on purpose: an operator who
+    # has taken over a session needs to read the number off the screen in front
+    # of them. The screenshots that are PERSISTED are masked anyway -- see
+    # `screenshot_masks(..., persisted=True)` -- because a file in an evidence
+    # pack outlives the incident and gets copied around, and a live view does
+    # not.
     - match:
         role: cell
-        scope: {anchor: {text: Account Number}, relation: within_table}
+        # By shape, within the right grid. The column cannot be named directly
+        # (ElementMatch has no column criterion) and matching the whole grid
+        # would mask the balance an operator is reading.
+        name_matches: "^\\s*\\d{9,12}\\s*$"
+        scope: {anchor: {text: Accounts}, relation: within_table}
       classification: account_number
       mask: [text]
-  text_detectors: [ssn, card_luhn, email, phone]
+    - match:
+        role: cell
+        # The sub-account confirmation screen, where the new number is a value
+        # cell in a label/value row rather than a grid column.
+        scope: {anchor: {text: New Account Number}, relation: within_row}
+      classification: account_number
+      mask: [text]
+
+    # The member's name. Regulated in the same sense the SSN is -- a name beside
+    # an account identifies a person -- and it was masked in `result.json` while
+    # sitting in plain text in the observation file next to it. Two shapes again:
+    # a column in the search-results grid, and a label/value row on the record.
+    - match:
+        role: cell
+        col_header: Name
+      classification: pii_name
+      mask: [screenshot, text]
+    - match:
+        role: cell
+        scope: {anchor: {text: Name}, relation: within_row}
+      classification: pii_name
+      mask: [screenshot, text]
+
+  # `account_number` is ON. It was the one detector left off, and with the node
+  # rule above inert that meant nothing masked an account number anywhere. The
+  # net is worth having here for the case node rules cannot reach: an error
+  # banner or a free-text note quoting a number. Checked for false positives
+  # against this product -- member ids are 5 digits, balances break at the comma
+  # and the decimal point, and ISO timestamps have no 9-digit run.
+  text_detectors: [ssn, card_luhn, email, phone, account_number]
+  # How an EXTRACTED output may be written down. The caller always receives the
+  # value whole -- an agent that asked for an account number needs it -- and
+  # this governs the copy that lands in the journal and in `result.json`.
   output_redaction_defaults:
-    account_number: last4
+    account_number: last4   # enough tail to correlate against a record
     ssn: drop
+    member_name: mask       # the caller asked for it; the evidence pack has no use for it
+    date_of_birth: drop
 
 # Drift canaries. `include` selects LABELS, never data -- a fingerprint that
 # changed with the member you looked up would report drift on every run.

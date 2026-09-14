@@ -64,6 +64,7 @@ from playwright.async_api import async_playwright  # noqa: E402
 
 from cua.escalation import InterventionBroker, InterventionStore, LiveSession  # noqa: E402
 from cua.escalation.console import create_console  # noqa: E402
+from cua.policy.allowlist import load_policy  # noqa: E402
 from cua.profiles import ProfileRepository  # noqa: E402
 from cua.replay import ReplayEngine  # noqa: E402
 from cua.replay.engine import CredentialResolver  # noqa: E402
@@ -225,6 +226,9 @@ async def main() -> int:
     ap.add_argument("--console-port", type=int, default=8801)
     ap.add_argument("--wait", type=float, default=900.0,
                     help="How long the run stays parked before abandoning.")
+    ap.add_argument("--policy", default="config/policy.yaml",
+                    help="Allowlist policy. Enforced inside act(), for the engine and "
+                         "for the operator's console picks alike.")
     ap.add_argument("--headless", action="store_true")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
@@ -272,13 +276,23 @@ async def main() -> int:
         broker.register(LiveSession(session_id=lease.session_id, surface=surface,
                                     lease=lease, profile=resolved, journal=journal))
 
+        artifact = lookup_balance_artifact()
+        # M6: the demo runs under the committed allowlist, not under a relaxed
+        # one. A safety demo that turns the safety off is a demo of something
+        # else -- and an operator's console picks go through the same guard.
+        allowlist = load_policy(args.policy).for_capability(artifact.ref)
+
         engine = ReplayEngine(
-            surface, lookup_balance_artifact(), resolved,
+            surface, artifact, resolved,
             journal=journal, tenant=args.tenant, broker=broker, lease=lease,
             goal="read a member's current savings balance",
+            policy=allowlist,
             credentials=CredentialResolver(
                 {"MOCKBANK_USER": "operator", "MOCKBANK_PASS": "demo-pass-not-real"}),
         )
+        print(f"  allowlist      {args.policy}: {resolved.base_url}, "
+              f"{len(allowlist.denied_paths)} denial(s), "
+              f"max {allowlist.max_navigations} navigations")
 
         rule("replay — with a console attached")
         watcher = asyncio.create_task(

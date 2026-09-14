@@ -35,7 +35,8 @@
       "minimum": null,
       "maximum": null,
       "example": null,
-      "sensitive": false
+      "sensitive": false,
+      "volatile": false
     },
     "product_code": {
       "type": "string",
@@ -47,7 +48,8 @@
       "minimum": null,
       "maximum": null,
       "example": null,
-      "sensitive": false
+      "sensitive": false,
+      "volatile": false
     },
     "initial_deposit": {
       "type": "string",
@@ -59,7 +61,8 @@
       "minimum": null,
       "maximum": null,
       "example": null,
-      "sensitive": false
+      "sensitive": false,
+      "volatile": false
     }
   },
   "outputs": {
@@ -144,7 +147,7 @@
         "any": [
           {
             "url": {
-              "matches": "/t/demo\\-cu/members$"
+              "matches": "/members$"
             },
             "frame": [
               {
@@ -162,7 +165,8 @@
               "value": null,
               "value_matches": null,
               "scope": null,
-              "enabled": null
+              "enabled": null,
+              "col_header": null
             },
             "exists": true,
             "text_matches": null,
@@ -171,6 +175,7 @@
           }
         ]
       },
+      "completion_witness": null,
       "risk": "submit_reversible",
       "requires_confirmation": false,
       "requires_human": false,
@@ -247,6 +252,7 @@
       },
       "preconditions": null,
       "checkpoint": null,
+      "completion_witness": null,
       "risk": "input",
       "requires_confirmation": false,
       "requires_human": false,
@@ -332,7 +338,7 @@
       "preconditions": null,
       "checkpoint": {
         "url": {
-          "matches": "/t/demo\\-cu/members/search$"
+          "matches": "/members/search$"
         },
         "frame": [
           {
@@ -342,6 +348,7 @@
           }
         ]
       },
+      "completion_witness": null,
       "risk": "submit_reversible",
       "requires_confirmation": false,
       "requires_human": false,
@@ -408,7 +415,7 @@
       "preconditions": null,
       "checkpoint": {
         "url": {
-          "matches": "/t/demo\\-cu/members/\\d+$"
+          "matches": "/members/\\d+$"
         },
         "frame": [
           {
@@ -418,6 +425,7 @@
           }
         ]
       },
+      "completion_witness": null,
       "risk": "navigate",
       "requires_confirmation": false,
       "requires_human": false,
@@ -491,7 +499,7 @@
         "any": [
           {
             "url": {
-              "matches": "/t/demo\\-cu/members/\\d+/subaccount/new$"
+              "matches": "/members/\\d+/subaccount/new$"
             },
             "frame": [
               {
@@ -509,7 +517,8 @@
               "value": null,
               "value_matches": null,
               "scope": null,
-              "enabled": null
+              "enabled": null,
+              "col_header": null
             },
             "exists": true,
             "text_matches": null,
@@ -518,6 +527,7 @@
           }
         ]
       },
+      "completion_witness": null,
       "risk": "navigate",
       "requires_confirmation": false,
       "requires_human": false,
@@ -599,6 +609,7 @@
       },
       "preconditions": null,
       "checkpoint": null,
+      "completion_witness": null,
       "risk": "input",
       "requires_confirmation": false,
       "requires_human": false,
@@ -676,6 +687,7 @@
       },
       "preconditions": null,
       "checkpoint": null,
+      "completion_witness": null,
       "risk": "input",
       "requires_confirmation": false,
       "requires_human": false,
@@ -755,13 +767,15 @@
           "value": null,
           "value_matches": null,
           "scope": null,
-          "enabled": null
+          "enabled": null,
+          "col_header": null
         },
         "exists": true,
         "text_matches": null,
         "frame": null,
         "min_count": 1
       },
+      "completion_witness": null,
       "risk": "submit_reversible",
       "requires_confirmation": false,
       "requires_human": false,
@@ -835,7 +849,7 @@
         "any": [
           {
             "url": {
-              "matches": "/t/demo\\-cu/members/\\d+/subaccount/confirm$"
+              "matches": "/members/\\d+/subaccount/confirm$"
             },
             "frame": [
               {
@@ -853,7 +867,8 @@
               "value": null,
               "value_matches": null,
               "scope": null,
-              "enabled": null
+              "enabled": null,
+              "col_header": null
             },
             "exists": true,
             "text_matches": null,
@@ -862,6 +877,7 @@
           }
         ]
       },
+      "completion_witness": null,
       "risk": "submit_irreversible",
       "requires_confirmation": true,
       "requires_human": false,
@@ -1007,7 +1023,7 @@
       "any": [
         {
           "url": {
-            "matches": "/t/demo\\-cu/members/\\d+/subaccount/confirm$"
+            "matches": "/members/\\d+/subaccount/confirm$"
           },
           "frame": [
             {
@@ -1025,7 +1041,8 @@
             "value": null,
             "value_matches": null,
             "scope": null,
-            "enabled": null
+            "enabled": null,
+            "col_header": null
           },
           "exists": true,
           "text_matches": null,
@@ -1045,5 +1062,5 @@
     "steps_pruned": 3,
     "verified_by_replay": false
   },
-  "content_hash": "sha256:457fa65cc229e33ee9654c3d808624e0cfee24ea83f552b19e1fc262719e281b"
+  "content_hash": "sha256:7c8dff7e2f0dd4c50fe83d5f376fd713f25efcf5e24884058efabad707896a6b"
 }

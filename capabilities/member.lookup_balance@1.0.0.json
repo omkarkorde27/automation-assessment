@@ -35,7 +35,8 @@
       "minimum": null,
       "maximum": null,
       "example": null,
-      "sensitive": false
+      "sensitive": false,
+      "volatile": false
     }
   },
   "outputs": {
@@ -120,7 +121,7 @@
         "any": [
           {
             "url": {
-              "matches": "/t/demo\\-cu/members$"
+              "matches": "/members$"
             },
             "frame": [
               {
@@ -138,7 +139,8 @@
               "value": null,
               "value_matches": null,
               "scope": null,
-              "enabled": null
+              "enabled": null,
+              "col_header": null
             },
             "exists": true,
             "text_matches": null,
@@ -147,6 +149,7 @@
           }
         ]
       },
+      "completion_witness": null,
       "risk": "submit_reversible",
       "requires_confirmation": false,
       "requires_human": false,
@@ -223,6 +226,7 @@
       },
       "preconditions": null,
       "checkpoint": null,
+      "completion_witness": null,
       "risk": "input",
       "requires_confirmation": false,
       "requires_human": false,
@@ -308,7 +312,7 @@
       "preconditions": null,
       "checkpoint": {
         "url": {
-          "matches": "/t/demo\\-cu/members/search$"
+          "matches": "/members/search$"
         },
         "frame": [
           {
@@ -318,6 +322,7 @@
           }
         ]
       },
+      "completion_witness": null,
       "risk": "submit_reversible",
       "requires_confirmation": false,
       "requires_human": false,
@@ -384,7 +389,7 @@
       "preconditions": null,
       "checkpoint": {
         "url": {
-          "matches": "/t/demo\\-cu/members/\\d+$"
+          "matches": "/members/\\d+$"
         },
         "frame": [
           {
@@ -394,6 +399,7 @@
           }
         ]
       },
+      "completion_witness": null,
       "risk": "navigate",
       "requires_confirmation": false,
       "requires_human": false,
@@ -543,14 +549,15 @@
           "value": null,
           "value_matches": null,
           "scope": null,
-          "enabled": null
+          "enabled": null,
+          "col_header": null
         },
         "exists": true,
         "text_matches": null,
         "frame": null,
         "min_count": 1
       },
-      "description": "The searched member id matches no record. The app shows the Search Results page with the alert \"No records found matching your search criteria.\" and only a \"Return to Member Search\" link \u2014 no member detail is available. This is a valid answer, not an error.",
+      "description": "The searched member id matches no record. The app shows the Search Results page with the alert \"No records found matching your search criteria.\" and only a \"Return to Member Search\" link — no member detail is available. This is a valid answer, not an error.",
       "after_step": null,
       "message_from": null,
       "terminal": true
@@ -560,7 +567,7 @@
   "success": {
     "checkpoint": {
       "url": {
-        "matches": "/t/demo\\-cu/members/\\d+$"
+        "matches": "/members/\\d+$"
       },
       "frame": [
         {
@@ -581,5 +588,5 @@
     "steps_pruned": 7,
     "verified_by_replay": true
   },
-  "content_hash": "sha256:1486218fa205b51ab079bc922292509da46ccc78663a4b0e583b6a6e936a25fb"
+  "content_hash": "sha256:f76374c903a865f907da5b029ab3bc061134ed23bac2ca2adbc53a4ac2ea6d8d"
 }

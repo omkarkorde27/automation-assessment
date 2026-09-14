@@ -69,7 +69,11 @@ def test_the_guard_actually_covers_the_engine():
                      # place a "let the model figure out this screen" helper
                      # would look most reasonable.
                      "session/control.py", "escalation/broker.py",
-                     "escalation/console.py", "policy/risk.py"):
+                     "escalation/console.py", "policy/risk.py",
+                     # M6: the engine now installs the allowlist itself, so
+                     # `policy` sits squarely on the replay path rather than
+                     # beside it, and redaction runs on every replay egress.
+                     "policy/allowlist.py", "policy/redaction.py"):
         assert required in scanned, f"{required} was not scanned"
     assert len(scanned) >= 15
 

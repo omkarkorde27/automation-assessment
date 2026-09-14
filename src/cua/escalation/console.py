@@ -258,12 +258,17 @@ def create_console(
     async def take(intervention_id: str, body: TakeBody, request: Request) -> JSONResponse:
         note("console.take_requested", request, intervention=intervention_id,
              operator=body.operator)
+        broker_ = require_broker()
         try:
-            updated = require_broker().take(intervention_id, body.operator)
+            updated = broker_.take(intervention_id, body.operator)
         except LookupError as exc:
             raise HTTPException(409, str(exc)) from exc
         except RuntimeError as exc:  # IllegalTransition -- already taken, or over
             raise HTTPException(409, str(exc)) from exc
+        # R-M6-4: photograph the screen the operator is inheriting, so a change
+        # made outside this console is visible at release. After the lease has
+        # moved, so the before-picture is of the screen they actually got.
+        await broker_.mark_taken(updated)
         return JSONResponse(resolved_store.dump(updated))
 
     @app.post("/api/interventions/{intervention_id}/act")
@@ -311,8 +316,16 @@ def create_console(
 
         resolution = Resolution(disposition=disposition, operator=body.operator,
                                 note=body.note)
+        broker_ = require_broker()
         try:
-            updated = require_broker().resolve(intervention_id, resolution)
+            found = resolved_store.get(intervention_id)
+            if found is None:
+                raise LookupError(f"no intervention {intervention_id!r}")
+            # R-M6-4, BEFORE the run is woken: once `resolve` sets the event the
+            # engine starts driving, and the screen stops being the one the
+            # operator left behind.
+            await broker_.audit_release(found)
+            updated = broker_.resolve(intervention_id, resolution)
         except LookupError as exc:
             raise HTTPException(404, str(exc)) from exc
         return JSONResponse(resolved_store.dump(updated))
@@ -393,6 +406,9 @@ async function open_(id) {
       <tr><td>run ended as</td><td>${esc(r.result_status || "still running")}</td></tr>
       <tr><td>opened</td><td>${esc(r.opened_at)}</td></tr>
       <tr><td>lease</td><td>${r.lease ? esc(r.lease.state + " · " + (r.lease.holder || "nobody")) : "–"}</td></tr>
+      ${r.unsanctioned_change ? `<tr><td>audit</td><td><b>unsanctioned change</b> —
+        the screen changed while the operator held the lease and nothing came through
+        this console. The window was driven directly; what was done is not recorded.</td></tr>` : ""}
       ${r.resolution ? `<tr><td>resolved</td><td>${esc(r.resolution.disposition)} by
         ${esc(r.resolution.operator)} at ${esc(r.resolution.at)}<br>${esc(r.resolution.note)}</td></tr>` : ""}
     </table>
@@ -410,6 +426,14 @@ async function open_(id) {
         <button onclick="done('abandon')">Abandon</button>
       </p>
       <h4>Live</h4>
+      <p class="dim">Picking a row below drives the session through the same
+         <code>act()</code> the engine uses: journaled, lease-checked, risk
+         re-derived. You can also click in the browser window itself — it is the
+         same session and the changes are real — but nothing intercepts input to
+         the browser, so those actions are <b>not journaled, not risk-checked and
+         cannot be promoted into the capability</b>. The release will be recorded
+         as an unsanctioned change (R-M6-4): the evidence pack will say the screen
+         moved, and will not be able to say how.</p>
       <img id="shot" alt="live screen">
       <div id="nodes"></div>`
      : `<p class="dim" style="margin-top:12px">This run has ended. Read-only —
