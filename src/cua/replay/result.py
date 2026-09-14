@@ -94,6 +94,16 @@ class _Base:
     steps: tuple[StepTrace, ...] = ()
     evidence_ref: str = ""
 
+    intervention_id: str | None = None
+    """The human-work item this run filed, if any.
+
+    On `_Base` rather than on `Escalated` alone, because filing an intervention
+    and escalating are different decisions. An unrecovered checkpoint failure is
+    still a `failure` -- the caller should debug it, not wait for a person -- and
+    it should still reach an operator's queue. Collapsing the two would mean
+    either paging somebody for every bug or silently swallowing the faults a
+    person could actually fix."""
+
     @property
     def resolution_summary(self) -> dict[str, int]:
         """Which locator candidate won, per strategy -- the drift signal fed to
@@ -148,11 +158,11 @@ class Escalated(_Base):
     reason_class: str = ""
     human_message: str = ""
     at_step: str = ""
-    intervention_id: str | None = None
-    """Populated in M5, when interventions get a store and a console. At M3 the
-    engine detects and reports the condition; nothing routes it yet."""
 
     resume_token: str | None = None
+    """The parked session's id. A calling agent hands this, with the
+    `intervention_id`, to whatever fronts the operator console; it is what makes
+    "resume this run" address the live browser rather than start a new one."""
 
     status = ReplayStatus.ESCALATED
     ok = False
@@ -204,6 +214,7 @@ def to_dict(result: ReplayResult) -> dict:
         "evidence_ref": result.evidence_ref,
         "resolution_summary": result.resolution_summary,
         "degraded_count": result.degraded_count,
+        "intervention_id": result.intervention_id,
         "steps": [
             {
                 "step_id": s.step_id,
@@ -226,7 +237,7 @@ def to_dict(result: ReplayResult) -> dict:
     elif isinstance(result, Escalated):
         base.update(
             reason_class=result.reason_class, human_message=result.human_message,
-            at_step=result.at_step, intervention_id=result.intervention_id,
+            at_step=result.at_step, resume_token=result.resume_token,
         )
     elif isinstance(result, Failure):
         base.update(

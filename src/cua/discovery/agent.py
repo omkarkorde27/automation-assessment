@@ -30,7 +30,7 @@ from ..policy.risk import IrreversibleActionGuard, classify
 from ..profiles.resolve import ResolvedProfile
 from ..surfaces.base import Action, ActionType, PolicyDenied, Surface
 from . import prompts
-from .annotate import annotate
+from ..observability.annotate import annotate
 from .model import ModelClient, ModelResponse
 from .tools import TOOLS, TOOL_NAMES
 from .transcript import DeclaredExtraction, DeclaredOutcome, DiscoveryRun, DiscoveryStep
@@ -66,6 +66,7 @@ class DiscoveryAgent:
         model_name: str = "claude-opus-5",
         screenshots: bool = True,
         evidence=None,
+        broker=None,
     ) -> None:
         self.surface = surface
         self.client = client
@@ -81,6 +82,19 @@ class DiscoveryAgent:
         self.evidence = evidence
         """Optional `EvidenceWriter`. Screenshots are saved through it as they
         are taken, so a run that crashes still leaves its evidence behind."""
+
+        self.broker = broker
+        """Optional `escalation.InterventionBroker`. Three of Part 3.7's stuck
+        triggers belong to this loop rather than to replay -- no-progress,
+        `give_up`, and a policy denial -- and a trigger that stops a run without
+        reaching a person is a trigger nobody acts on.
+
+        Filed with `takeover=False`: nothing in this loop waits for an answer.
+        Parking a discovery run for a human is the plan's stated *bonus* (a
+        human's fix promoted into the artifact), not part of M5, and claiming
+        the console can drive a run that has already returned would be exactly
+        the kind of declared-but-unconsumed capability the gate exists to catch.
+        """
 
         self.run = DiscoveryRun(
             run_id=f"disc_{uuid.uuid4().hex[:12]}",
@@ -101,6 +115,43 @@ class DiscoveryAgent:
     # ---- public ---------------------------------------------------------
 
     async def run_discovery(self) -> DiscoveryRun:
+        run = await self._explore()
+        await self._file_if_stuck(run)
+        return run
+
+    #: Stop statuses that mean a person should look. `budget_exhausted` and
+    #: `aborted` are absent on purpose: a step cap and a truncated model turn
+    #: are operator-of-THIS-tool problems, not back-office work items.
+    STUCK_STATUSES = {
+        "gave_up": "DISCOVERY_GAVE_UP",
+        "stuck": "DISCOVERY_NO_PROGRESS",
+        "denied": "POLICY_DENIED",
+    }
+
+    async def _file_if_stuck(self, run: DiscoveryRun) -> None:
+        if self.broker is None:
+            return
+        reason_class = self.STUCK_STATUSES.get(run.status)
+        if reason_class is None:
+            return
+
+        from ..escalation.requests import InterventionRequest
+
+        request = InterventionRequest(
+            run_id=run.run_id, session_id=run.run_id, goal=run.goal, tenant=run.tenant,
+            capability_ref=f"(discovery) {run.goal[:60]}",
+            step_id=f"step {self._step_index}",
+            reason_class=reason_class, human_message=run.stop_reason,
+            expected="a flow the model could complete unaided",
+            observed=self._last_observation.summarize()
+            if self._last_observation is not None else "",
+            takeover=False, result_status=run.status,
+        )
+        self.broker.open(request)
+        self.journal.emit("discovery.escalated", intervention=request.id,
+                          reason=reason_class, status=run.status)
+
+    async def _explore(self) -> DiscoveryRun:
         started = time.monotonic()
         self.journal.emit("discovery.started", run_id=self.run.run_id, goal=self.run.goal,
                           tenant=self.run.tenant, model=self.run.model,

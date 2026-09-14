@@ -60,28 +60,64 @@ class IrreversibleActionGuard:
     prompt instruction: the model cannot act outside it even if it decides to,
     and the attempt is journaled as POLICY_DENIED rather than silently dropped.
 
-    Known gap, closed in M6: guards run BEFORE the locator resolves, so this
-    sees `action.risk` as the caller classified it rather than re-deriving it
-    from the node. The agent classifies from the node it actually chose, so the
-    tier is honest today -- but it is trusted rather than enforced, and a caller
-    that mislabels an action would slip through. M6 moves classification to
-    after resolution, inside `act()`, where it cannot be supplied from outside.
+    **R-M6-2.** The decision is taken in `check_resolved`, against a tier that
+    `act()` re-derived from the node that actually resolved. `check` -- the
+    pre-resolution pass -- deliberately does nothing: at that point the only
+    tier available is the one the caller wrote on the `Action`, and a guard that
+    reads the caller's own risk assessment is a convention with a stack frame.
+    The gap was real and is closed here: an `Action` labelled `input` whose
+    target resolves to "Confirm and Open Account" is refused on the label the
+    button carries, not the one the caller supplied.
+
+    **A human may go further than the agent.** When the control lease is held by
+    a person, the guard stands down: takeover exists so an operator can do the
+    thing automation would not, and a guard that blocked them would make the
+    console decorative. They do not leave the allowlist -- that guard is not
+    lease-aware, and never should be -- and the override is journaled with their
+    name against it.
     """
 
-    def __init__(self, *, allow_irreversible: bool = False) -> None:
+    def __init__(self, *, allow_irreversible: bool = False, lease=None) -> None:
         self.allow_irreversible = allow_irreversible
-        self.denied: list[str] = []
+        self.lease = lease
+        """Optional `ControlLease`. Duck-typed rather than imported, so `policy`
+        keeps not depending on `session` and this guard stays usable in a run
+        that has no lease at all."""
 
-    def check(self, action: Action, surface) -> None:
-        if self.allow_irreversible:
-            return
-        tier = action.risk
+        self.denied: list[str] = []
+        self.human_overrides: list[str] = []
+
+    def check(self, action: Action, surface=None) -> None:
+        """Pre-resolution: nothing to decide yet. See the class docstring."""
+        return None
+
+    def check_resolved(self, action: Action, tier: RiskTier, node, surface=None) -> None:
         if tier is not RiskTier.SUBMIT_IRREVERSIBLE:
             return
         target = action.target.target_id if action.target else action.type.value
+
+        if self._human_holds():
+            self.human_overrides.append(target)
+            journal = getattr(surface, "journal", None)
+            if journal is not None:
+                journal.emit("policy.human_override", target=target,
+                             derived_risk=tier.value, holder=self.lease.holder,
+                             note="irreversible action permitted: a person holds the lease")
+            return
+
+        if self.allow_irreversible:
+            return
+
         self.denied.append(target)
         raise PolicyDenied(
-            f"refusing an irreversible action on {target!r} during discovery: "
-            f"re-run with --allow-irreversible if that is genuinely intended",
+            f"refusing an irreversible action on {target!r}: the control it resolved to "
+            f"is {node.describe() if node else 'unnamed'}. Re-run with "
+            f"--allow-irreversible if that is genuinely intended.",
             action=action,
         )
+
+    def _human_holds(self) -> bool:
+        lease = self.lease
+        if lease is None:
+            return False
+        return getattr(lease.state, "value", "") == "HUMAN_OWNED"

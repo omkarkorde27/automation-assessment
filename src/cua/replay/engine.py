@@ -29,7 +29,7 @@ from __future__ import annotations
 import re
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ..artifact.schema import (
@@ -46,9 +46,15 @@ from ..conditions.dsl import EvalContext, UnsupportedOperator, evaluate, unsuppo
 from ..conditions.model import Condition, describe
 from ..locators.model import LocatorBundle
 from ..locators.resolve import LocatorError, resolve_node
+from ..escalation.requests import (
+    Disposition,
+    InterventionRequest,
+    Resolution,
+)
 from ..observability.journal import Journal, MemoryJournal
 from ..perception.model import Observation
 from ..profiles.resolve import ResolvedProfile
+from ..session.control import AUTOMATION, ControlLease
 from ..surfaces.base import Action, ActionType, PolicyDenied, RiskTier, Surface
 from .result import (
     BusinessOutcome,
@@ -100,6 +106,19 @@ class _Resume:
     from_index: int
 
 
+#: Failure classes that file an intervention without parking the run. These are
+#: the three of Part 3.7's seven stuck triggers that resolve to a `failure`
+#: rather than an `escalated`: the caller is told to debug it, AND an operator
+#: sees it. Absent on purpose: PARAM_INVALID and CAPABILITY_UNSUPPORTED (nothing
+#: was opened, so there is no session and no screen for a person to look at) and
+#: INTERNAL (a bug in this code is not human work in a bank's back office).
+INTERVENTION_WORTHY_FAILURES = frozenset({
+    FailureClass.LOCATOR_UNRESOLVED,
+    FailureClass.CHECKPOINT_FAILED,
+    FailureClass.POLICY_DENIED,
+})
+
+
 class ReplayEngine:
     def __init__(
         self,
@@ -111,6 +130,9 @@ class ReplayEngine:
         credentials: CredentialResolver | None = None,
         tenant: str = "",
         max_recoveries_per_run: int = 8,
+        broker=None,
+        lease: ControlLease | None = None,
+        goal: str = "",
     ) -> None:
         self.surface = surface
         self.artifact = artifact
@@ -119,6 +141,18 @@ class ReplayEngine:
         self.credentials = credentials or CredentialResolver()
         self.tenant = tenant or profile.profile.profile.id
         self.max_recoveries_per_run = max_recoveries_per_run
+        self.goal = goal
+
+        self.broker = broker
+        """Optional `escalation.InterventionBroker`. With one attached, an
+        escalation parks the run in place and waits for a person; without one --
+        plain `cua replay`, every offline test -- the engine returns the
+        terminal `Escalated` it always has. Duck-typed so `replay` keeps not
+        importing anything that could reach a model."""
+
+        self.lease = lease
+        """Optional `ControlLease`. Present when a human could take this session
+        over. The engine holds it as `automation` for the whole run."""
 
         self.run_id = f"run_{uuid.uuid4().hex[:12]}"
         self._traces: list[StepTrace] = []
@@ -138,6 +172,23 @@ class ReplayEngine:
     # ---- public ---------------------------------------------------------
 
     async def run(self, params: dict | None = None) -> ReplayResult:
+        """Execute the flow. The lease, if there is one, is held for the whole run.
+
+        Held via `acting_as` rather than by setting a field, because the guard
+        reads an ambient actor: every `act()` the engine performs -- including
+        the ones inside recoveries, waits and re-authentication -- happens inside
+        this block, and every `act()` performed by anything else does not.
+        """
+        if self.lease is None:
+            return await self._run_guarded(params)
+        with self.lease.acting_as(AUTOMATION):
+            return await self._run_guarded(params)
+
+    async def _run_guarded(self, params: dict | None) -> ReplayResult:
+        result = await self._run(params)
+        return await self._file_for_failure(result)
+
+    async def _run(self, params: dict | None = None) -> ReplayResult:
         self.journal.emit(
             "run.started", run_id=self.run_id, capability=self.artifact.ref,
             tenant=self.tenant, profile=list(self.profile.lineage),
@@ -373,8 +424,10 @@ class ReplayEngine:
                           action=step.action.type.value, risk=step.risk.value)
 
         if step.requires_human:
-            return self._escalate("REQUIRES_HUMAN", step.id,
-                                  "The artifact marks this step as requiring a person.")
+            return await self._escalate(
+                "REQUIRES_HUMAN", step.id,
+                "The artifact marks this step as requiring a person.",
+                index=index, expected=step.intent)
 
         # Preconditions. An optional step whose precondition fails is skipped --
         # that is how a tenant-specific extra screen is tolerated without
@@ -400,7 +453,7 @@ class ReplayEngine:
 
         result = await self.surface.act(action)
         if not result.ok:
-            return self._action_failure(step, result, started)
+            return await self._action_failure(step, result, started, index=index)
 
         resolved_by = result.resolved.strategy if result.resolved else ""
         degraded = bool(result.resolved and result.resolved.degraded)
@@ -448,13 +501,18 @@ class ReplayEngine:
                 self._trace(step, ok=False, resolved_by=resolved_by, degraded=degraded,
                             recoveries=ladder.recoveries, started=started,
                             note="resume would repeat an irreversible step")
-                return self._escalate(
+                return await self._escalate(
                     "IRREVERSIBLE_INTERRUPTED", step.id,
                     f"The session dropped while running {step.id}. Resuming would re-run "
                     f"irreversible step(s) {named} ({', '.join(s.intent for s in irreversible)}), "
                     f"and whether that write already took effect cannot be determined from "
                     f"outside the application. Check whether it landed, then either mark this "
                     f"run complete or allow it to re-run.",
+                    index=index, expected=f"{step.intent} to have completed exactly once",
+                    observed=await self._observed_summary(),
+                    # "Resume" re-runs the write; "I completed this step" skips
+                    # it. That is precisely the choice R-M6-1 says an operator
+                    # must make, and it needs no vocabulary of its own.
                 )
 
             self._trace(step, ok=False, resolved_by=resolved_by, degraded=degraded,
@@ -493,7 +551,15 @@ class ReplayEngine:
         if ladder.kind == "escalate":
             self._trace(step, ok=False, resolved_by=resolved_by, degraded=degraded,
                         recoveries=ladder.recoveries, started=started)
-            return self._escalate(ladder.failure_code, step.id, ladder.detail)
+            return await self._escalate(
+                ladder.failure_code, step.id, ladder.detail, index=index,
+                # A stuck pattern fires INSTEAD of the checkpoint, so what the
+                # flow expected is what the checkpoint asserted. Filing the
+                # request without it leaves the operator the observed screen and
+                # nothing to compare it against.
+                expected=describe(step.checkpoint) if step.checkpoint is not None
+                else step.intent,
+                observed=await self._observed_summary())
 
         if ladder.kind == "checkpoint_failed":
             self._trace(step, ok=False, resolved_by=resolved_by, degraded=degraded,
@@ -744,10 +810,240 @@ class ReplayEngine:
         return BusinessOutcome(code=outcome.code, message=message, at_step=step_id,
                                **self._common())
 
-    def _escalate(self, reason_class: str, step_id: str, human_message: str) -> Escalated:
-        self.journal.emit("run.finished", status="escalated", reason=reason_class, step=step_id)
-        return Escalated(reason_class=reason_class, human_message=human_message,
-                         at_step=step_id, **self._common())
+    async def _escalate(self, reason_class: str, step_id: str, human_message: str,
+                        *, index: int | None = None, expected: str = "",
+                        observed: str = "") -> Escalated | _Resume:
+        """A human is needed. File the request, and -- if one can arrive -- wait.
+
+        Returns `_Resume` when an operator hands the flow back, so the caller's
+        step loop re-enters. Returns `Escalated` when nobody is listening, when
+        the operator abandons the run, or when the wait expires.
+        """
+        request = await self._file_intervention(
+            reason_class, step_id, human_message,
+            index=index, expected=expected, observed=observed, takeover=True,
+        )
+
+        if request is None or self.broker is None:
+            self.journal.emit("run.finished", status="escalated",
+                              reason=reason_class, step=step_id)
+            return Escalated(reason_class=reason_class, human_message=human_message,
+                             at_step=step_id, resume_token=self._resume_token(),
+                             **self._common())
+
+        resolution = await self.broker.wait(request)
+        self.journal.emit("intervention.answered", intervention=request.id,
+                          disposition=resolution.disposition.value,
+                          operator=resolution.operator)
+
+        if resolution.disposition is Disposition.ABANDON or index is None:
+            self.journal.emit("run.finished", status="escalated",
+                              reason=reason_class, step=step_id,
+                              intervention=request.id)
+            return Escalated(reason_class=reason_class, human_message=human_message,
+                             at_step=step_id, intervention_id=request.id,
+                             resume_token=self._resume_token(), **self._common())
+
+        target = index if resolution.disposition is Disposition.RESUME else index + 1
+        return await self._handback(target, request, resolution)
+
+    # ---- handback -------------------------------------------------------
+
+    async def _handback(self, target: int, request: InterventionRequest,
+                        resolution: Resolution) -> _Resume | Failure:
+        """Re-verify where we are standing before taking the wheel back.
+
+        The operator says the screen is ready. Believing them is the easy
+        implementation and the wrong one: they were fixing a broken flow under
+        time pressure, on a screen the automation already misread once. So the
+        engine checks the target step's own precondition against the live screen
+        and only then reclaims the lease.
+
+        Bounded to {same step, next step} by construction -- those are the only
+        two values `target` can hold -- so a handback can resynchronise or fail,
+        and can never go hunting for a step that happens to match.
+        """
+        verified, how = await self._verify_handback(target)
+        self.journal.emit(
+            "handback.verified" if verified else "handback.resync_failed",
+            intervention=request.id, target_step=self._step_name(target),
+            disposition=resolution.disposition.value, operator=resolution.operator,
+            checked=how,
+        )
+
+        if not verified:
+            if self.lease is not None:
+                self.lease.abandon(actor=AUTOMATION,
+                                   reason="handback left the session on an unexpected screen")
+            return self._fail(
+                FailureClass.PRECONDITION_FAILED, at_step=self._step_name(target),
+                expected=how,
+                observed=await self._observed_summary(),
+                detail={"handback": resolution.disposition.value,
+                        "intervention": request.id, "operator": resolution.operator},
+            )
+
+        if self.lease is not None:
+            self.lease.resumed(reason=f"handback verified at {self._step_name(target)}")
+        # Everything the human did happened on a screen we did not verify, so
+        # nothing before this point is a safe resume point any more.
+        self._last_checkpoint_index = min(self._last_checkpoint_index, target - 1)
+        return _Resume(target)
+
+    async def _verify_handback(self, target: int) -> tuple[bool, str]:
+        """Is the live screen the one step `target` expects to start from?
+
+        Four cases, in descending order of how much they prove:
+          1. the operator finished the LAST step, so there is no step to enter --
+             what the flow claims is now true is its success checkpoint, and
+             that is what gets checked;
+          2. the step declares a precondition -- evaluate it, and that is that;
+          3. it does not, but the step before it declared a checkpoint -- the
+             screen that step left behind is the screen this one starts on;
+          4. none of the above -- there is nothing to check. Say so in the
+             journal rather than reporting a verification that did not happen.
+
+        Case 1 is not a formality. "I completed that step myself" on the final
+        step means the flow is over, and accepting it unchecked sends the run
+        straight into extraction against whatever screen the operator left
+        behind -- which surfaces as an unresolvable locator three frames later
+        instead of as the handback problem it actually is.
+        """
+        if target >= len(self.artifact.steps):
+            success = self.artifact.success.checkpoint
+            if success is None:
+                return True, "(unverified: the flow declares no success checkpoint)"
+            return await self._settle_for(
+                success, f"the flow's success state: {describe(success)}")
+
+        step = self.artifact.steps[target]
+
+        if step.preconditions is not None:
+            return await self._settle_for(step.preconditions, describe(step.preconditions))
+
+        if target > 0:
+            previous_step = self.artifact.steps[target - 1]
+            if previous_step.checkpoint is not None:
+                return await self._settle_for(
+                    previous_step.checkpoint,
+                    f"the state {previous_step.id} leaves behind: "
+                    f"{describe(previous_step.checkpoint)}")
+
+        return True, "(unverified: neither this step nor the one before it asserts anything)"
+
+    async def _settle_for(self, condition: Condition, described: str,
+                          attempts: int = 6) -> tuple[bool, str]:
+        """Evaluate a handback condition, allowing the screen to finish arriving.
+
+        The operator's last click and their press of "release" are two separate
+        events with nothing ordering them, so the screen is routinely still
+        loading when the engine is handed back the wheel. Checking once and
+        calling it a desync would fail every handback where the person was
+        quick, and the failure would look exactly like the one that means they
+        left the session somewhere wrong -- which is the one case this check
+        exists to catch. Bounded, so a genuine desync still fails and fails
+        loudly rather than hanging.
+        """
+        grace = self.profile.profile.surface.timeouts.slow_load_grace_ms
+        for attempt in range(attempts):
+            if evaluate(condition, await self._context()):
+                return True, described
+            if attempt == attempts - 1:
+                break
+            await self.surface.act(Action(ActionType.WAIT,
+                                          timeout_ms=max(150, grace // attempts),
+                                          reason="let the screen settle after a handback"))
+        return False, described
+
+    def _step_name(self, index: int) -> str:
+        if index >= len(self.artifact.steps):
+            return "(end of flow)"
+        return self.artifact.steps[index].id
+
+    # ---- filing ---------------------------------------------------------
+
+    async def _file_intervention(self, reason_class: str, step_id: str, human_message: str,
+                                 *, index: int | None, expected: str, observed: str,
+                                 takeover: bool,
+                                 result_status: str = "") -> InterventionRequest | None:
+        """Write the request, with a redacted picture of what stopped us.
+
+        Returns None when there is no broker: the engine still journals and
+        still returns the right result variant, it simply has nowhere to send
+        human work. That is the offline default, and it is why every existing
+        test sees exactly the behaviour it saw before.
+        """
+        if self.broker is None:
+            return None
+
+        session_id = self.lease.session_id if self.lease is not None else self.run_id
+        request = InterventionRequest(
+            run_id=self.run_id, session_id=session_id,
+            capability_ref=self.artifact.ref, goal=self.goal, tenant=self.tenant,
+            step_id=step_id, step_index=index,
+            reason_class=reason_class, human_message=human_message,
+            expected=expected, observed=observed,
+            takeover=takeover, result_status=result_status,
+        )
+        request = await self._attach_evidence(request)
+        self.broker.open(request)
+        return request
+
+    async def _attach_evidence(self, request: InterventionRequest) -> InterventionRequest:
+        """A screenshot and an observation, both redacted, beside the request.
+
+        Best-effort: an intervention that reaches a person without a picture is
+        worth much more than one that never reaches them because the screenshot
+        raised. The paths are written into the request only once the bytes are
+        actually on disk, so the console never renders a link to nothing.
+        """
+        session = self.broker.sessions.get(request.session_id) if self.broker else None
+        if session is None:
+            return request
+
+        directory = self.broker.evidence_root / "runs" / request.run_id / "interventions"
+        update: dict[str, str] = {}
+        try:
+            observation, png = await session.snapshot()
+            directory.mkdir(parents=True, exist_ok=True)
+            if png is not None:
+                shot = directory / f"{request.id}.png"
+                shot.write_bytes(png)
+                update["screenshot_ref"] = str(shot)
+            observed = directory / f"{request.id}_observation.json"
+            observed.write_text(observation.model_dump_json(indent=2))
+            update["observation_ref"] = str(observed)
+        except Exception as exc:  # evidence is best-effort; the page-out is not
+            self.journal.emit("intervention.evidence_failed", intervention=request.id,
+                              error=f"{type(exc).__name__}: {exc}")
+        return request.model_copy(update=update) if update else request
+
+    async def _file_for_failure(self, result: ReplayResult) -> ReplayResult:
+        """Part 3.7's stuck triggers that resolve to a `failure`, not an escalation.
+
+        An unrecovered checkpoint failure, an unresolvable locator and a policy
+        denial are all things a person can look at and often fix -- and all
+        things the CALLER should be told to debug rather than told to wait for.
+        So the variant is unchanged and an intervention is filed alongside it.
+        The run does not park: it has already ended, and `takeover=False` tells
+        the console not to offer a wheel that is no longer attached to anything.
+        """
+        if self.broker is None or not isinstance(result, Failure):
+            return result
+        if result.failure_class not in INTERVENTION_WORTHY_FAILURES:
+            return result
+
+        request = await self._file_intervention(
+            result.failure_class.value, result.at_step,
+            f"{self.artifact.ref} stopped at {result.at_step or 'an early step'}: "
+            f"{result.failure_class.value}. Expected {result.expected or 'the flow to continue'}; "
+            f"saw {result.observed or 'something else'}.",
+            index=None, expected=result.expected, observed=result.observed,
+            takeover=False, result_status=result.status.value,
+        )
+        if request is None:
+            return result
+        return replace(result, intervention_id=request.id)
 
     def _fail(self, failure_class: FailureClass, *, at_step: str = "", expected: str = "",
               observed: str = "", detail: dict | None = None) -> Failure:
@@ -756,7 +1052,8 @@ class ReplayEngine:
         return Failure(failure_class=failure_class, at_step=at_step, expected=expected,
                        observed=observed, detail=detail or {}, **self._common())
 
-    def _action_failure(self, step: Step, result, started: float) -> Failure:
+    async def _action_failure(self, step: Step, result, started: float,
+                              *, index: int | None = None) -> Failure | Escalated | _Resume:
         cls = {
             "LOCATOR_UNRESOLVED": FailureClass.LOCATOR_UNRESOLVED,
             "LOCATOR_AMBIGUOUS": FailureClass.LOCATOR_AMBIGUOUS,
@@ -773,7 +1070,13 @@ class ReplayEngine:
         # Ambiguity is the case where a person must decide which control was
         # meant. Guessing is what this system refuses to do.
         if cls is FailureClass.LOCATOR_AMBIGUOUS:
-            return self._escalate("AMBIGUOUS_TARGET", step.id, result.error or "")
+            return await self._escalate(
+                "AMBIGUOUS_TARGET", step.id, result.error or "",
+                index=index,
+                expected=f"exactly one control matching {step.action.target.target_id}"
+                         if step.action.target else "exactly one matching control",
+                observed=await self._observed_summary(),
+            )
 
         return self._fail(cls, at_step=step.id,
                           expected=f"{step.action.type.value} on {step.action.target.target_id}"
@@ -881,6 +1184,15 @@ class ReplayEngine:
             resolved_by=resolved_by, degraded=degraded, recoveries=recoveries, note=note,
             duration_ms=int((time.monotonic() - started) * 1000),
         ))
+
+    def _resume_token(self) -> str | None:
+        """The parked session's id, or None when there is no session to park.
+
+        Without a lease the browser belongs to whoever constructed the engine
+        and there is nothing to hand back to; returning the run id anyway would
+        be a token that looks resumable and is not.
+        """
+        return self.lease.session_id if self.lease is not None else None
 
     def _common(self) -> dict:
         return {

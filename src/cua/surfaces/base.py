@@ -11,11 +11,26 @@ adapter emitting the same `UiNode`s. See `desktop_stub.py`, which implements the
 protocol without a body so the seam can be inspected instead of described.
 
 `act()` is also the single choke point for policy. Allowlist checks, risk-tier
-gating, and the control lease all run here, in `_run_guards`, so an action that
-policy forbids cannot be performed by any caller -- the LLM, the replay engine,
-or the operator console. A guardrail expressed as a prompt instruction is not a
-guardrail. Guards land with M5/M6; the hook exists from the start so there is
-exactly one place they can go.
+gating, and the control lease all run here, so an action that policy forbids
+cannot be performed by any caller -- the LLM, the replay engine, or the operator
+console. A guardrail expressed as a prompt instruction is not a guardrail.
+
+The hook is in **two passes**, and the split is R-M6-2:
+
+  * `check(action, surface)` runs BEFORE the locator resolves. Checks that need
+    no node live here -- the allowlist and the control lease are properties of
+    the session and the destination, not of the control being operated.
+  * `check_resolved(action, tier, node, surface)` runs AFTER resolution, against
+    a tier **re-derived from the node that actually resolved**. It is optional;
+    a guard that does not define it simply has nothing to say at this point.
+
+The second pass exists because the first one cannot do the job. A pre-resolution
+guard has a `LocatorBundle`, not a node, so the only tier available to it is the
+one the caller wrote on the `Action` -- and a choke point that reads the caller's
+own description of how dangerous its action is has not checked anything. "The
+button in this row" is neither reversible nor irreversible until you know which
+button it is. `action.risk` therefore survives as a *declaration*: journaled,
+compared against the derived tier, and never the thing policy trusts.
 """
 
 from __future__ import annotations
@@ -100,6 +115,13 @@ class ActionResult:
     error: str | None = None
     error_detail: dict = field(default_factory=dict)
 
+    derived_risk: RiskTier | None = None
+    """The tier `act()` computed from the node that actually resolved (R-M6-2).
+
+    Returned so callers record what was enforced rather than what they claimed.
+    `None` only when the action never reached the post-resolution pass -- it was
+    refused pre-resolution, or the locator did not resolve at all."""
+
 
 class PolicyDenied(Exception):
     """An action was refused at the choke point. Not a surface failure."""
@@ -110,17 +132,28 @@ class PolicyDenied(Exception):
         super().__init__(message)
         self.message = message
         self.action = action
+        self.denied_by = "policy"
+        """Which guard refused, for the journal. A run that was stopped by the
+        control lease and one that was stopped by the irreversible guard are the
+        same failure class and completely different incidents."""
 
 
 @runtime_checkable
 class ActionGuard(Protocol):
     """Runs before every action. Raises PolicyDenied to refuse it.
 
-    Implemented by the allowlist and risk policy (M6) and the control lease
-    (M5). Kept as a protocol so the surface never imports either.
+    Implemented by the risk policy and the control lease. Kept as a protocol so
+    the surface never imports either.
     """
 
-    def check(self, action: Action, surface: "Surface") -> None: ...
+    def check(self, action: Action, surface: "Surface") -> None:
+        """Pre-resolution. No node is available yet; see the module docstring."""
+
+    # Optional second pass. Declared here so the contract is readable in one
+    # place, and probed with `hasattr` at the call site so a guard with nothing
+    # to say after resolution does not have to write an empty body.
+    #
+    # def check_resolved(self, action, tier, node, surface) -> None: ...
 
 
 @runtime_checkable

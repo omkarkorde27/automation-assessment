@@ -22,13 +22,20 @@ from playwright.async_api import Frame, Page, TimeoutError as PWTimeout
 
 from ..locators.model import LocatorBundle
 from ..locators.resolve import LocatorError, resolve_node
+from ..observability.journal import Journal, MemoryJournal
 from ..perception.model import Anchors, BBox, Observation, UiNode
+# Risk classification is imported by the surface on purpose. R-M6-2's whole
+# argument is that the tier must be computed INSIDE the choke point from the
+# node that resolved -- a classifier the caller invokes and passes in would be
+# the caller's claim again, wearing a function call.
+from ..policy.risk import classify
 from .base import (
     Action,
     ActionGuard,
     ActionResult,
     ActionType,
     PolicyDenied,
+    RiskTier,
     SurfaceCapabilities,
     SurfaceKind,
 )
@@ -45,10 +52,16 @@ class WebSurface:
         *,
         guards: list[ActionGuard] | None = None,
         kind: SurfaceKind = SurfaceKind.LEGACY_WEB,
+        journal: Journal | None = None,
     ) -> None:
         self._page = page
         self._guards = guards or []
         self._kind = kind
+        self.journal = journal or MemoryJournal()
+        """Where `policy.checked` is recorded. The surface journals the guard
+        decision itself rather than trusting a caller to report it: the caller
+        whose action was refused is the last one who should be writing the
+        record of the refusal."""
 
     @property
     def page(self) -> Page:
@@ -168,9 +181,45 @@ class WebSurface:
         self._guards.append(guard)
 
     def _run_guards(self, action: Action) -> None:
-        """The choke point. Every action, no exceptions, before anything moves."""
+        """Pass one: everything decidable without knowing which node resolved."""
         for guard in self._guards:
             guard.check(action, self)
+
+    def _derive_risk(self, action: Action, node: UiNode | None) -> RiskTier:
+        """Pass two, part one (R-M6-2): what IS this action, really?
+
+        The caller's `action.risk` is journaled beside the derived tier and used
+        for nothing else. Where the two disagree the journal says so, which is
+        how a caller that is quietly mislabelling its actions becomes visible
+        before it becomes an incident.
+
+        Separate from the guard run so the derived tier survives a refusal: the
+        one case where a caller most needs to be told which tier was enforced is
+        the case where enforcing it stopped them.
+        """
+        tier = classify(action.type, node)
+        claimed = action.risk.value if action.risk else None
+        self.journal.emit(
+            "policy.checked", action=action.type.value,
+            target=action.target.target_id if action.target else (action.url or ""),
+            node=node.describe() if node else "",
+            claimed_risk=claimed, derived_risk=tier.value,
+            mismatch=bool(claimed and claimed != tier.value),
+        )
+        return tier
+
+    def _run_resolved_guards(self, action: Action, tier: RiskTier,
+                             node: UiNode | None) -> None:
+        """Pass two, part two: guards that need to know what resolved.
+
+        `check_resolved` is optional -- probed rather than required -- so a
+        guard with nothing to say once the node is known does not have to carry
+        an empty method to prove it.
+        """
+        for guard in self._guards:
+            check_resolved = getattr(guard, "check_resolved", None)
+            if check_resolved is not None:
+                check_resolved(action, tier, node, self)
 
     async def act(self, action: Action) -> ActionResult:
         started = time.monotonic()
@@ -181,33 +230,47 @@ class WebSurface:
                 duration_ms=int((time.monotonic() - started) * 1000), **kw
             )
 
+        def refused(exc: PolicyDenied, tier: RiskTier | None = None) -> ActionResult:
+            self.journal.emit("policy.denied", action=action.type.value,
+                              denied_by=getattr(exc, "denied_by", "policy"),
+                              derived_risk=tier.value if tier else None,
+                              error=exc.message)
+            return done(False, derived_risk=tier, error=exc.message,
+                        error_detail={"failure_class": type(exc).failure_class,
+                                      "denied_by": getattr(exc, "denied_by", "policy")})
+
         try:
             self._run_guards(action)
         except PolicyDenied as exc:
-            return done(False, error=exc.message,
-                        error_detail={"failure_class": PolicyDenied.failure_class})
+            return refused(exc)
 
         try:
-            if action.type is ActionType.NAVIGATE:
-                if not action.url:
-                    return done(False, error="navigate requires a url")
-                await self._page.goto(action.url, timeout=action.timeout_ms,
-                                      wait_until="domcontentloaded")
-                return done(True)
+            # Targetless actions still go through the post-resolution pass, with
+            # no node. Skipping it for them would leave a class of action that
+            # never meets the enforcing half of the choke point, and "which
+            # actions are exempt" is not a question a choke point should have.
+            if action.type in (ActionType.NAVIGATE, ActionType.WAIT,
+                               ActionType.PRESS_KEY, ActionType.SCROLL):
+                tier = self._derive_risk(action, None)
+                try:
+                    self._run_resolved_guards(action, tier, None)
+                except PolicyDenied as exc:
+                    return refused(exc, tier)
 
-            if action.type is ActionType.WAIT:
-                await self._page.wait_for_timeout(action.timeout_ms)
-                return done(True)
-
-            if action.type is ActionType.PRESS_KEY:
-                if not action.key:
-                    return done(False, error="press_key requires a key")
-                await self._page.keyboard.press(action.key)
-                return done(True)
-
-            if action.type is ActionType.SCROLL:
-                await self._page.mouse.wheel(0, int(action.value or 400))
-                return done(True)
+                if action.type is ActionType.NAVIGATE:
+                    if not action.url:
+                        return done(False, derived_risk=tier, error="navigate requires a url")
+                    await self._page.goto(action.url, timeout=action.timeout_ms,
+                                          wait_until="domcontentloaded")
+                elif action.type is ActionType.WAIT:
+                    await self._page.wait_for_timeout(action.timeout_ms)
+                elif action.type is ActionType.PRESS_KEY:
+                    if not action.key:
+                        return done(False, derived_risk=tier, error="press_key requires a key")
+                    await self._page.keyboard.press(action.key)
+                else:
+                    await self._page.mouse.wheel(0, int(action.value or 400))
+                return done(True, derived_risk=tier)
 
             # Everything below needs a resolved target.
             if action.target is None:
@@ -215,18 +278,27 @@ class WebSurface:
 
             observation = await self.observe()
             node, resolved = resolve_node(action.target, observation)
+
+            # The node exists. NOW the tier is knowable, and now it is enforced.
+            tier = self._derive_risk(action, node)
+            try:
+                self._run_resolved_guards(action, tier, node)
+            except PolicyDenied as exc:
+                return refused(exc, tier)
+
             frame = self._frame_for(node.frame_path)
             if frame is None:
-                return done(False, error=f"frame {node.frame_path} vanished before acting",
+                return done(False, derived_risk=tier,
+                            error=f"frame {node.frame_path} vanished before acting",
                             error_detail={"failure_class": "LOCATOR_UNRESOLVED"})
 
             if not node.enabled:
-                return done(False, resolved=resolved,
+                return done(False, resolved=resolved, derived_risk=tier,
                             error=f"target is disabled: {node.describe()}",
                             error_detail={"failure_class": "PRECONDITION_FAILED"})
 
             await self._deliver(action, node, frame)
-            return done(True, resolved=resolved)
+            return done(True, resolved=resolved, derived_risk=tier)
 
         except LocatorError as exc:
             return done(False, error=exc.message, error_detail=exc.as_detail())

@@ -69,7 +69,10 @@ class DesktopSurface:
     def add_guard(self, guard) -> None:
         """Guards attach the same way on every surface -- that is the point of
         the protocol. A desktop adapter would run them in `act()` exactly as the
-        web one does."""
+        web one does: `check()` before the locator resolves, then `check_resolved()`
+        against a tier re-derived from the UIA/AX element that actually matched
+        (R-M6-2). The control lease is one of those guards, which is what makes
+        the operator console work unchanged against a desktop session."""
         self._guards.append(guard)
 
     async def observe(self) -> Observation:
