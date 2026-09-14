@@ -1,0 +1,25 @@
+{
+  "run_id": "disc_cccbcae3f06c",
+  "status": "finished",
+  "finished_at": "2026-09-13T23:57:43.955803+00:00",
+  "artifact": "member.lookup_balance@1.0.0",
+  "content_hash": "sha256:1486218fa205b51ab079bc922292509da46ccc78663a4b0e583b6a6e936a25fb",
+  "verified_by_replay": true,
+  "verification_skipped": null,
+  "cost": {
+    "agent": {
+      "model": "claude-opus-5",
+      "input_tokens": 104289,
+      "output_tokens": 1594,
+      "usd": 1.683885
+    },
+    "reviewer": {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 1343,
+      "output_tokens": 253,
+      "usd": 0.002608
+    },
+    "total_usd": 1.686493,
+    "note": "token counts measured; prices are list-price assumptions"
+  }
+}

@@ -1,0 +1,9 @@
+{"kind": "session.opening_app", "at": "2026-09-13T23:58:06.709373+00:00", "url": "http://127.0.0.1:8800/t/demo-cu"}
+{"kind": "session.expired", "at": "2026-09-13T23:58:06.741396+00:00", "detector": "(url matches //login/ in frame content OR alert matching /(?i)session has expired/ is present)"}
+{"kind": "session.reauth_attempt", "at": "2026-09-13T23:58:06.741551+00:00", "attempt": 1}
+{"kind": "session.reauth_ok", "at": "2026-09-13T23:58:07.248279+00:00", "attempt": 1}
+{"kind": "discovery.started", "at": "2026-09-13T23:58:07.248568+00:00", "run_id": "disc_deb070ce99ed", "goal": "Search for member 99999, which does not exist, so you can see and declare how this application reports a member it cannot find. Then search for member 12345 and read their current savings balance.", "tenant": "demo-cu", "model": "claude-sonnet-5", "profile_hash": "sha256:aa73fb4579be3b28971bf3c81479cb75"}
+{"kind": "observation.captured", "at": "2026-09-13T23:58:07.260489+00:00", "step": 0, "nodes": 12, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:ea3938e680d18cc4ed9f2ee8315fc66c"}
+{"kind": "observation.captured", "at": "2026-09-13T23:58:12.218258+00:00", "step": 2, "nodes": 12, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:ea3938e680d18cc4ed9f2ee8315fc66c"}
+{"kind": "observation.captured", "at": "2026-09-13T23:58:17.635298+00:00", "step": 4, "nodes": 12, "url": "http://127.0.0.1:8800/t/demo-cu/", "state": "sha256:ea3938e680d18cc4ed9f2ee8315fc66c"}
+{"kind": "discovery.finished", "at": "2026-09-13T23:58:17.671866+00:00", "status": "stuck", "reason": "the screen did not change across 3 consecutive actions", "steps": 2, "kept": 0, "input_tokens": 13731, "output_tokens": 386}

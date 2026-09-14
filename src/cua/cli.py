@@ -56,6 +56,37 @@ def inject(
     typer.echo(json.dumps(resp.json(), indent=2))
 
 
+@app.command("dry-run")
+def dry_run_cmd(
+    tenant: str = typer.Option("demo-cu", help="Tenant profile to drive against."),
+    base_url: str = typer.Option("", help="Override the profile's base_url."),
+    profiles_root: str = typer.Option("profiles", help="Profile directory."),
+) -> None:
+    """Exercise the discovery loop's control logic with no model and no API key.
+
+    Budgets, stopping conditions, the dead-end detector, the tool schemas and the
+    policy choke point are all decidable without a model. `discover` runs this
+    first by default; run it on its own while changing the loop.
+    """
+    import asyncio
+
+    from .discovery.dryrun import run_control_checks
+    from .profiles.resolve import ProfileRepository
+
+    repository = ProfileRepository(profiles_root)
+    resolved = repository.resolve(tenant)
+    if base_url:
+        surface_cfg = resolved.profile.surface.model_copy(update={"base_url": base_url})
+        resolved = resolved.__class__(
+            profile=resolved.profile.model_copy(update={"surface": surface_cfg}),
+            lineage=resolved.lineage, hash=resolved.hash,
+        )
+
+    report = asyncio.run(run_control_checks(resolved))
+    typer.echo(report.render())
+    raise typer.Exit(0 if report.ok else 1)
+
+
 @app.command("discover")
 def discover_cmd(
     goal: str = typer.Option(..., "--goal", help="What the capability should achieve."),
@@ -70,8 +101,19 @@ def discover_cmd(
     max_steps: int = typer.Option(25, help="Step budget."),
     headed: bool = typer.Option(True, help="Show the browser while it works."),
     verify: bool = typer.Option(True, help="Replay the recording once, to prove it works."),
-    effort: str = typer.Option("high", help="Model effort: high | medium | low."),
-    model: str = typer.Option("claude-opus-5", help="Model id."),
+    effort: str = typer.Option("", help="Model effort: high | medium | low. "
+                                       "Defaults to $CUA_EFFORT, else high."),
+    model: str = typer.Option("", help="Model for the discovery loop. Defaults to "
+                                       "$CUA_MODEL, else claude-opus-5. Point it at a "
+                                       "cheaper model while iterating; the graded run "
+                                       "uses the default."),
+    reviewer_model: str = typer.Option("", help="Model for the authoring review pass. "
+                                                "Defaults to $CUA_REVIEWER_MODEL, else "
+                                                "Haiku -- it fills a fixed schema from "
+                                                "an already-successful transcript."),
+    preflight: bool = typer.Option(True, help="Dry-run the loop's control logic against "
+                                              "scripted observations before spending a "
+                                              "single token on the real model."),
     profiles_root: str = typer.Option("profiles", help="Profile directory."),
     capabilities_root: str = typer.Option("capabilities", help="Where to save the artifact."),
 ) -> None:
@@ -84,18 +126,27 @@ def discover_cmd(
 
     from dotenv import load_dotenv
 
+    import os
+
+    from .artifact.authoring import DEFAULT_REVIEWER_MODEL
+
     load_dotenv()
     asyncio.run(_run_discovery(
         goal=goal, capability_id=capability_id, tenant=tenant, base_url=base_url,
         allow_irreversible=allow_irreversible, max_steps=max_steps, headed=headed,
-        verify=verify, effort=effort, model=model,
+        verify=verify,
+        effort=effort or os.environ.get("CUA_EFFORT", "high"),
+        model=model or os.environ.get("CUA_MODEL", "claude-opus-5"),
+        reviewer_model=(reviewer_model or os.environ.get("CUA_REVIEWER_MODEL")
+                        or DEFAULT_REVIEWER_MODEL),
+        preflight=preflight,
         profiles_root=profiles_root, capabilities_root=capabilities_root,
     ))
 
 
 async def _run_discovery(
     *, goal, capability_id, tenant, base_url, allow_irreversible, max_steps, headed,
-    verify, effort, model, profiles_root, capabilities_root,
+    verify, effort, model, reviewer_model, preflight, profiles_root, capabilities_root,
 ) -> None:
     from playwright.async_api import async_playwright
 
@@ -120,12 +171,26 @@ async def _run_discovery(
 
     product_ref = resolved.profile.extends or resolved.profile.ref
     base = repository.load_raw(product_ref)
+
+    # Preflight BEFORE the client is built, so a control-logic bug costs nothing.
+    if preflight:
+        from .discovery.dryrun import run_control_checks
+
+        typer.echo("preflight  dry-running the loop's control logic (no API calls)...")
+        report = await run_control_checks(resolved)
+        typer.echo(report.render(indent="           "))
+        if not report.ok:
+            typer.echo("\npreflight FAILED -- refusing to spend a real run on a broken loop.",
+                       err=True)
+            raise typer.Exit(4)
+
     client = AnthropicClient(model=model, effort=effort)
 
     typer.echo(f"goal      {goal}")
     typer.echo(f"tenant    {tenant}  ({' <- '.join(resolved.lineage)})")
     typer.echo(f"target    {resolved.base_url}")
     typer.echo(f"model     {model} (effort={effort}, adaptive thinking)")
+    typer.echo(f"reviewer  {reviewer_model}")
     typer.echo(f"policy    irreversible actions "
                f"{'ALLOWED' if allow_irreversible else 'blocked'}\n")
 
@@ -150,7 +215,7 @@ async def _run_discovery(
                 model_name=model,
                 verify=verify,
                 credentials=CredentialResolver(),
-                reviewer=AnthropicReviewer(client._client, model=model),
+                reviewer=AnthropicReviewer(client._client, model=reviewer_model),
             )
         finally:
             await browser.close()

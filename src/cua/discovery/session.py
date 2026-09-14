@@ -28,6 +28,7 @@ from ..session.auth import Authenticator, CredentialResolver
 from ..replay.result import ReplayResult, Success
 from ..surfaces.base import Surface
 from .agent import DiscoveryAgent, DiscoveryLimits
+from .costs import RunCost, Spend
 from .model import ModelClient
 from .transcript import DiscoveryRun
 
@@ -52,7 +53,6 @@ class DiscoveryOutcome:
             f"run          {self.run.run_id}",
             f"status       {self.run.status} -- {self.run.stop_reason}",
             f"steps        {len(self.run.steps)} taken, {len(self.run.kept_steps)} kept",
-            f"tokens       {self.run.input_tokens} in / {self.run.output_tokens} out",
         ]
         if self.refusal:
             lines.append(f"recorder     REFUSED: {self.refusal}")
@@ -72,7 +72,31 @@ class DiscoveryOutcome:
                          + (f" -- outputs {self.verification.outputs}" if self.verified else ""))
         if self.evidence_dir:
             lines.append(f"evidence     {self.evidence_dir}")
+        lines.append("cost")
+        lines.append(self.cost.report())
+        alt = self.cost.counterfactual(reviewer_model=self.run.model)
+        if alt:
+            lines.append(alt)
         return "\n".join(lines)
+
+    @property
+    def cost(self) -> RunCost:
+        """Measured usage, split by which model did what.
+
+        Split rather than totalled because the two calls have completely
+        different shapes: the loop re-sends a growing conversation every turn,
+        the reviewer sends one small prompt once. A single number hides that the
+        expensive part is the loop and the cheap part does not need an expensive
+        model.
+        """
+        reviewer = None
+        if self.authoring is not None and self.authoring.model:
+            reviewer = Spend(self.authoring.model, self.authoring.input_tokens,
+                             self.authoring.output_tokens)
+        return RunCost(
+            agent=Spend(self.run.model, self.run.input_tokens, self.run.output_tokens),
+            reviewer=reviewer,
+        )
 
 
 async def discover(
@@ -203,6 +227,16 @@ async def discover(
         content_hash=artifact.content_hash,
         verified_by_replay=outcome.verified,
         verification_skipped=outcome.verify_skipped or None,
+        cost={
+            "agent": {"model": run.model, "input_tokens": run.input_tokens,
+                      "output_tokens": run.output_tokens, "usd": outcome.cost.agent.usd},
+            "reviewer": ({"model": authoring.model, "input_tokens": authoring.input_tokens,
+                          "output_tokens": authoring.output_tokens,
+                          "usd": outcome.cost.reviewer.usd if outcome.cost.reviewer else None}
+                         if authoring.model else None),
+            "total_usd": outcome.cost.total_usd,
+            "note": "token counts measured; prices are list-price assumptions",
+        },
     )
     return outcome
 

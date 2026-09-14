@@ -1,0 +1,216 @@
+{
+  "url": "http://127.0.0.1:8800/t/demo-cu/",
+  "title": "Demo Credit Union - Meridian Core",
+  "nodes": [
+    {
+      "node_id": "nav:n1",
+      "role": "link",
+      "name": "Home",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 25.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.027777777777777776,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Servicing",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "nav:n2",
+      "role": "link",
+      "name": "Member Search",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 53.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.058888888888888886,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Home",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "nav:n3",
+      "role": "link",
+      "name": "Sign Out",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "nav"
+      ],
+      "bbox": {
+        "x": 0.0,
+        "y": 81.0,
+        "w": 190.0,
+        "h": 28.0,
+        "nx": 0.0,
+        "ny": 0.09,
+        "nw": 1.0,
+        "nh": 0.03111111111111111
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Servicing",
+        "nearest_heading": "",
+        "preceding_text": "Member Search",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n1",
+      "role": "alert",
+      "name": "No records found matching your search criteria.",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 214.0,
+        "y": 101.0,
+        "w": 1043.0,
+        "h": 33.0,
+        "nx": 0.021120293847566574,
+        "ny": 0.11222222222222222,
+        "nw": 0.9577594123048668,
+        "nh": 0.03666666666666667
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "Search Results",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "div",
+      "sensitive": false
+    },
+    {
+      "node_id": "content:n2",
+      "role": "link",
+      "name": "Return to Member Search",
+      "value": null,
+      "states": {
+        "visible": true,
+        "enabled": true,
+        "readonly": false,
+        "required": false,
+        "checked": false,
+        "focused": false
+      },
+      "frame_path": [
+        "content"
+      ],
+      "bbox": {
+        "x": 214.0,
+        "y": 146.0,
+        "w": 155.109375,
+        "h": 15.0,
+        "nx": 0.021120293847566574,
+        "ny": 0.1622222222222222,
+        "nw": 0.14243285123966942,
+        "nh": 0.016666666666666666
+      },
+      "anchors": {
+        "label": "",
+        "row_label": "",
+        "row_text": "",
+        "col_header": "",
+        "section_label": "No records found matching your search criteria.",
+        "nearest_heading": "",
+        "preceding_text": "",
+        "dialog_label": ""
+      },
+      "tag": "a",
+      "sensitive": false
+    }
+  ],
+  "frame_paths": [
+    [],
+    [
+      "nav"
+    ],
+    [
+      "content"
+    ]
+  ],
+  "frame_urls": {
+    "": "http://127.0.0.1:8800/t/demo-cu/",
+    "nav": "http://127.0.0.1:8800/t/demo-cu/nav",
+    "content": "http://127.0.0.1:8800/t/demo-cu/members/search"
+  },
+  "captured_at": "2026-09-13T23:56:57.281906Z"
+}
