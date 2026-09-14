@@ -56,5 +56,111 @@ def inject(
     typer.echo(json.dumps(resp.json(), indent=2))
 
 
+@app.command("discover")
+def discover_cmd(
+    goal: str = typer.Option(..., "--goal", help="What the capability should achieve."),
+    capability_id: str = typer.Option(..., "--capability-id",
+                                      help="Id to record it under, e.g. member.lookup_balance."),
+    tenant: str = typer.Option("demo-cu", help="Tenant profile to run against."),
+    base_url: str = typer.Option("", help="Override the profile's base_url."),
+    allow_irreversible: bool = typer.Option(
+        False, "--allow-irreversible",
+        help="Permit actions that commit something. Off by default: an exploring model "
+             "must not be able to post a transaction because it was curious."),
+    max_steps: int = typer.Option(25, help="Step budget."),
+    headed: bool = typer.Option(True, help="Show the browser while it works."),
+    verify: bool = typer.Option(True, help="Replay the recording once, to prove it works."),
+    effort: str = typer.Option("high", help="Model effort: high | medium | low."),
+    model: str = typer.Option("claude-opus-5", help="Model id."),
+    profiles_root: str = typer.Option("profiles", help="Profile directory."),
+    capabilities_root: str = typer.Option("capabilities", help="Where to save the artifact."),
+) -> None:
+    """Discover a flow with the LLM, record it as a capability, and verify it.
+
+    The only command that needs ANTHROPIC_API_KEY. Replay, the console and the
+    whole test suite run offline.
+    """
+    import asyncio
+
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    asyncio.run(_run_discovery(
+        goal=goal, capability_id=capability_id, tenant=tenant, base_url=base_url,
+        allow_irreversible=allow_irreversible, max_steps=max_steps, headed=headed,
+        verify=verify, effort=effort, model=model,
+        profiles_root=profiles_root, capabilities_root=capabilities_root,
+    ))
+
+
+async def _run_discovery(
+    *, goal, capability_id, tenant, base_url, allow_irreversible, max_steps, headed,
+    verify, effort, model, profiles_root, capabilities_root,
+) -> None:
+    from playwright.async_api import async_playwright
+
+    from .artifact.schema import ProductRef
+    from .artifact.store import ArtifactStore
+    from .discovery.agent import DiscoveryLimits
+    from .artifact.authoring import AnthropicReviewer
+    from .discovery.model import AnthropicClient
+    from .discovery.session import discover
+    from .profiles.resolve import ProfileRepository
+    from .replay.engine import CredentialResolver
+    from .surfaces.web_playwright import WebSurface
+
+    repository = ProfileRepository(profiles_root)
+    resolved = repository.resolve(tenant)
+    if base_url:
+        surface_cfg = resolved.profile.surface.model_copy(update={"base_url": base_url})
+        resolved = resolved.__class__(
+            profile=resolved.profile.model_copy(update={"surface": surface_cfg}),
+            lineage=resolved.lineage, hash=resolved.hash,
+        )
+
+    product_ref = resolved.profile.extends or resolved.profile.ref
+    base = repository.load_raw(product_ref)
+    client = AnthropicClient(model=model, effort=effort)
+
+    typer.echo(f"goal      {goal}")
+    typer.echo(f"tenant    {tenant}  ({' <- '.join(resolved.lineage)})")
+    typer.echo(f"target    {resolved.base_url}")
+    typer.echo(f"model     {model} (effort={effort}, adaptive thinking)")
+    typer.echo(f"policy    irreversible actions "
+               f"{'ALLOWED' if allow_irreversible else 'blocked'}\n")
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=not headed)
+        context = await browser.new_context(
+            viewport={"width": resolved.profile.surface.viewport.width,
+                      "height": resolved.profile.surface.viewport.height})
+        page = await context.new_page()
+        try:
+            outcome = await discover(
+                WebSurface(page), client, resolved,
+                goal=goal, tenant=tenant, capability_id=capability_id,
+                product=ProductRef(vendor=base.profile.vendor,
+                                   product=base.profile.product or base.profile.id,
+                                   version_range=f">={base.profile.version}"),
+                app_profile_ref=product_ref,
+                store=ArtifactStore(capabilities_root),
+                repository=repository,
+                limits=DiscoveryLimits(max_steps=max_steps),
+                allow_irreversible=allow_irreversible,
+                model_name=model,
+                verify=verify,
+                credentials=CredentialResolver(),
+                reviewer=AnthropicReviewer(client._client, model=model),
+            )
+        finally:
+            await browser.close()
+
+    typer.echo("\n" + outcome.summary())
+    if outcome.refusal:
+        raise typer.Exit(3)
+    if not outcome.run.succeeded:
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()

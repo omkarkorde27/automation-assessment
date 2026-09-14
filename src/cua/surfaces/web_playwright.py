@@ -164,6 +164,9 @@ class WebSurface:
 
     # ---- action --------------------------------------------------------
 
+    def add_guard(self, guard: ActionGuard) -> None:
+        self._guards.append(guard)
+
     def _run_guards(self, action: Action) -> None:
         """The choke point. Every action, no exceptions, before anything moves."""
         for guard in self._guards:

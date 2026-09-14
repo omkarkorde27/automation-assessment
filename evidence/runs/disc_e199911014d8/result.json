@@ -1,0 +1,9 @@
+{
+  "run_id": "disc_e199911014d8",
+  "status": "finished",
+  "finished_at": "2026-09-13T23:33:32.980902+00:00",
+  "artifact": "member.open_subaccount@1.0.0",
+  "content_hash": "sha256:457fa65cc229e33ee9654c3d808624e0cfee24ea83f552b19e1fc262719e281b",
+  "verified_by_replay": false,
+  "verification_skipped": "this capability is irreversible, and replaying it to verify it would commit the action a second time. Verify it against a sacrificial environment, or approve it on review of the recording."
+}
