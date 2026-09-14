@@ -172,7 +172,16 @@ def apply_sensitivity(observation: Observation, profile: AppProfile,
             scrub_text(node.value or "", detectors) != (node.value or "")
             or scrub_text(node.name, detectors) != node.name
         )
-        is_masked = by_rule or by_detector
+        # An empty field has nothing to redact. A rule selects a node by its
+        # role and its position -- "the textbox in the Last Name row" -- and
+        # position is true of the control whether or not anybody has typed in
+        # it, so without this an untouched search box came back `sensitive` and
+        # the console rendered `<redacted>` over a field that was simply blank.
+        # That is the same category error as masking a column header: it
+        # describes where regulated data would live, and reports it as if the
+        # data were there.
+        has_content = bool(node.name.strip() or (node.value or "").strip())
+        is_masked = (by_rule or by_detector) and has_content
         masked.append(is_masked)
         if is_masked:
             for raw in (node.name, node.value):

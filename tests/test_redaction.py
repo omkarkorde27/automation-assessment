@@ -651,3 +651,54 @@ def test_screenshot_masks_and_the_node_list_agree_about_what_is_regulated():
         "the node list uses, or a label can be legible in one and painted over "
         "in the other"
     )
+
+
+async def test_an_empty_field_is_never_reported_as_redacted(
+        signed_in, profile, live_server):
+    """Nothing typed means nothing to hide.
+
+    A node rule selects a control by role and position -- "the textbox in the
+    Last Name row" -- and the position is true of the control whether or not
+    anyone has typed in it. So an untouched search box came back `sensitive`
+    and the console, which renders `<redacted>` for any sensitive node, drew it
+    over a field that was simply blank.
+
+    That is the label/header error wearing a different hat: the rule describes
+    where regulated data WOULD live and the UI reports it as though the data
+    were there. An operator cannot tell a masked value from an empty box, which
+    is the same confusion as not being able to tell which row was the SSN.
+    """
+    await signed_in.goto(f"{live_server}/t/demo-cu/members", wait_until="networkidle")
+    blank = apply_sensitivity(await WebSurface(signed_in).observe(), profile.profile)
+
+    for node in blank.nodes:
+        if node.role != "textbox":
+            continue
+        assert not node.sensitive, (
+            f"the empty {node.anchors.row_label!r} box is marked sensitive, so the "
+            f"console will render <redacted> over a field nobody has typed into"
+        )
+        assert node.value in ("", None), "and there is nothing in it to have masked"
+
+
+async def test_a_cell_with_no_content_under_a_regulated_column_is_not_masked(
+        signed_in, profile, live_server):
+    """The same rule, the other shape. `has_content` is about the node, not the
+    kind of node, so it has to hold for cells too."""
+    from cua.perception.model import UiNode
+
+    await signed_in.goto(f"{live_server}/t/demo-cu/members/12345",
+                         wait_until="networkidle")
+    record = await WebSurface(signed_in).observe()
+    real = next(n for n in record.nodes if n.name == "Dana Whitfield")
+
+    # The same node, emptied. Position and role unchanged -- only the content.
+    empty = real.model_copy(update={"name": "   ", "value": None})
+    hollow = record.model_copy(update={"nodes": (empty,)})
+    assert not apply_sensitivity(hollow, profile.profile).nodes[0].sensitive
+
+    # ...and the untouched one is still masked, so this did not pass by turning
+    # the rule off.
+    assert apply_sensitivity(
+        record.model_copy(update={"nodes": (real,)}), profile.profile
+    ).nodes[0].sensitive

@@ -389,13 +389,24 @@ _PAGE = """<!doctype html>
  #list, #main { min-height: 0; }
  #list { border-right: 1px solid #8884; overflow-y: auto; padding: 8px; }
  #main { overflow-y: auto; overflow-x: hidden; padding: 12px; }
- /* The picture is worth keeping in view while you hunt for a row, so the rows
-    scroll inside their own box rather than pushing it off the top. */
- #nodes { max-height: 42vh; overflow: auto; border: 1px solid #8884;
-          border-radius: 4px; }
+ /* ONE scroll container, and it is #main. An inner scroll box for the rows
+    sounded tidier and was worse to use: the wheel over the table scrolled the
+    table, the wheel over the picture scrolled the page, and which one you got
+    depended on where the pointer happened to be. */
+ #nodes { border: 1px solid #8884; border-radius: 4px; }
  #nodes table { margin: 0; }
- #nodes thead th, #nodes .urlbar { position: sticky; top: 0; background: Canvas; }
- #shot { display: block; }
+ #nodes .urlbar { position: sticky; top: 0; background: Canvas; margin: 0;
+                  padding: 4px 6px; border-bottom: 1px solid #8884; }
+ /* `img { max-width: 100% }` constrains the WIDTH. This application is a
+    frameset and its screenshot is far taller than the viewport, so the picture
+    alone filled the window and pushed every node row below the fold -- which
+    looks exactly like a page that will not scroll. Cap the height and let the
+    aspect ratio give back the width. */
+ #shot { display: block; max-height: 40vh; width: auto; max-width: 100%;
+         object-fit: contain; object-position: top left; }
+ /* `[hidden]` is only `display:none` from the UA sheet, and the rule above
+    outranks it. Without this the toggle sets the attribute and nothing moves. */
+ #shot[hidden] { display: none; }
  .row { padding: 6px 8px; border: 1px solid #8884; border-radius: 4px; margin-bottom: 6px;
         cursor: pointer; }
  .row.on { border-color: #d24; }
@@ -472,15 +483,16 @@ async function open_(id) {
         <button onclick="done('step_completed')">I completed this step</button>
         <button onclick="done('abandon')">Abandon</button>
       </p>
-      <h4>Live</h4>
-      <p class="dim">Picking a row below drives the session through the same
+      <h4>Live <button onclick="togglePic()" id="pic-btn">hide picture</button></h4>
+      <details><summary class="dim">how driving this works</summary>
+            <p class="dim">Picking a row below drives the session through the same
          <code>act()</code> the engine uses: journaled, lease-checked, risk
          re-derived. You can also click in the browser window itself — it is the
          same session and the changes are real — but nothing intercepts input to
          the browser, so those actions are <b>not journaled, not risk-checked and
          cannot be promoted into the capability</b>. The release will be recorded
          as an unsanctioned change (R-M6-4): the evidence pack will say the screen
-         moved, and will not be able to say how.</p>
+         moved, and will not be able to say how.</p></details>
       <img id="shot" alt="live screen">
       <div id="nodes"></div>`
      : `<p class="dim" style="margin-top:12px">This run has ended. Read-only —
@@ -522,6 +534,17 @@ async function poll() {
   } finally {
     polling = false;
   }
+}
+
+function togglePic() {
+  // The rows are what an operator clicks; the picture is only orientation. On a
+  // short window it can still push the table further down than is comfortable,
+  // so it collapses. The state lives on the element rather than in the
+  // re-rendered HTML, so the 1.5s redraw does not undo it.
+  const img = document.getElementById("shot"), btn = document.getElementById("pic-btn");
+  if (!img) return;
+  img.hidden = !img.hidden;
+  btn.textContent = img.hidden ? "show picture" : "hide picture";
 }
 
 async function pick(nodeId, role) {
