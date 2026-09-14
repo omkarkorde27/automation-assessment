@@ -27,7 +27,7 @@ cp .env.example .env             # fixture credentials (fake) + optional API key
 else in this README runs offline.**
 
 ```bash
-uv run pytest                    # 448 tests, no API key required
+uv run pytest                    # 452 tests, no API key required
 ```
 
 ---
@@ -145,7 +145,17 @@ uv run cua replay member.open_subaccount \
 uv run cua replay member.open_subaccount \
     --params '{"member_id":"12345","product_code":"HSA","initial_deposit":"50.00"}' \
     --confirm-irreversible
+
+# this one really did write. Put the fixture back, so §2 still works afterwards.
+curl -X POST localhost:8800/t/demo-cu/__control/reset
 ```
+
+That last line is not ceremony. The write appends a sub-account to member
+12345 — as a *Savings* row, whatever the product code — so re-running §2 against
+a mutated fixture finds two Savings rows and correctly refuses to guess between
+them (`EXTRACTION_FAILED`). That is the locator layer doing its job, but it is a
+confusing thing to meet on your second command, so the demo cleans up after
+itself. Restarting `cua serve-app` does the same thing.
 
 ### 5. Human takeover of the same live session
 

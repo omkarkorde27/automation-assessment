@@ -458,3 +458,28 @@ async def control_clear(request: Request, slug: str) -> JSONResponse:
     tenant = _tenant_or_404(slug)
     faults.clear(tenant.slug)
     return JSONResponse({"tenant": tenant.slug, "armed": faults.state(tenant.slug)})
+
+
+@app.post("/t/{slug}/__control/reset")
+async def control_reset(request: Request, slug: str) -> JSONResponse:
+    """Reseed the fixture: members, their accounts, and the account sequence.
+
+    Opening a sub-account appends to a member's account list (and appends it as
+    a *Savings* row, whatever the product code), so a write demo leaves member
+    12345 with two Savings accounts and the next `lookup_balance` correctly
+    refuses to resolve an ambiguous locator. That is the locator layer working;
+    it is still a poor thing to hand a reviewer on their second command. This
+    endpoint puts the fixture back without restarting the server.
+
+    Member data is module-global and therefore shared by both tenants, so the
+    reseed is global; armed faults are per-tenant and only the caller's are
+    cleared. The response says which is which rather than leaving it implied.
+    """
+    tenant = _tenant_or_404(slug)
+    data.reset()
+    faults.clear(tenant.slug)
+    return JSONResponse({
+        "reset": "fixture data (global: members, accounts, account sequence)",
+        "faults_cleared_for": tenant.slug,
+        "armed": faults.state(tenant.slug),
+    })

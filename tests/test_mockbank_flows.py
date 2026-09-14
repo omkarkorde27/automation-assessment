@@ -262,6 +262,55 @@ def test_control_plane_rejects_unknown_faults(auth):
     assert auth.post(f"{BASE}/__control", params={"fault": "nonsense"}).status_code == 400
 
 
+def _open_subaccount(auth, product_code="HSA"):
+    """Drive the two-step sub-account form the way the recorded flow does."""
+    form = {"product_code": product_code, "initial_deposit": "50.00", "nickname": ""}
+    auth.post(f"{BASE}/members/12345/subaccount/new", data=form)
+    return auth.post(f"{BASE}/members/12345/subaccount/confirm", data=form).text
+
+
+def test_reset_reseeds_a_member_a_write_has_mutated(auth):
+    """The README's demo sequence depends on this.
+
+    Opening a sub-account appends a *Savings* row whatever the product code, so
+    a member who has been written to has two of them -- and `lookup_balance`
+    then correctly refuses to resolve an ambiguous locator. The write demo is
+    documented with a reset immediately after it so re-running the read demo
+    works; if this endpoint stops reseeding, that sequence breaks silently.
+    """
+    assert auth.get(f"{BASE}/members/12345").text.count("<td>Savings</td>") == 1
+
+    _open_subaccount(auth)
+    assert auth.get(f"{BASE}/members/12345").text.count("<td>Savings</td>") == 2, (
+        "the write should have mutated the member -- otherwise this proves nothing"
+    )
+
+    body = auth.post(f"{BASE}/__control/reset").json()
+    assert body["faults_cleared_for"] == TENANT
+    assert auth.get(f"{BASE}/members/12345").text.count("<td>Savings</td>") == 1
+
+
+def test_reset_restores_the_account_number_sequence(auth):
+    """A reseed that left the counter running would make the demo's output drift
+    on every repeat -- the kind of thing nobody notices until a recorded
+    expectation stops matching."""
+    auth.post(f"{BASE}/__control/reset")
+    first = re.search(r"2000\d{5}", _open_subaccount(auth)).group(0)
+
+    auth.post(f"{BASE}/__control/reset")
+    assert re.search(r"2000\d{5}", _open_subaccount(auth)).group(0) == first
+
+
+def test_reset_clears_armed_faults_for_the_caller(auth):
+    auth.post(f"{BASE}/__control", params={"fault": "not_found", "count": 2})
+    auth.post(f"{BASE}/__control/reset")
+    assert auth.get(f"{BASE}/__control").json()["armed"] == {}
+
+
+def test_reset_is_scoped_to_a_real_tenant(auth):
+    assert auth.post("/t/nope/__control/reset").status_code == 404
+
+
 # --------------------------------------------------------------------------
 # two tenants, same vendor product
 # --------------------------------------------------------------------------
