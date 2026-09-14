@@ -32,7 +32,7 @@ from ..surfaces.base import Action, ActionType, PolicyDenied, Surface
 from . import prompts
 from .annotate import annotate
 from .model import ModelClient, ModelResponse
-from .tools import TOOLS
+from .tools import TOOLS, TOOL_NAMES
 from .transcript import DeclaredExtraction, DeclaredOutcome, DiscoveryRun, DiscoveryStep
 
 # Only the most recent observations keep their screenshot. Older turns degrade
@@ -126,8 +126,17 @@ class DiscoveryAgent:
                 return self._stop("budget_exhausted",
                                   f"exceeded {self.limits.wall_clock_s:.0f}s of wall clock")
 
-            response = self.client.send(
-                system=self._system(), messages=self._messages, tools=TOOLS)
+            try:
+                response = self.client.send(
+                    system=self._system(), messages=self._messages, tools=TOOLS)
+            except Exception as exc:
+                # The transcript up to this point is still evidence, and often
+                # the most useful kind. Losing it to an exception on turn nine
+                # would throw away everything the run had established.
+                self.journal.emit("llm.transport_error",
+                                  error=f"{type(exc).__name__}: {exc}")
+                return self._stop("aborted", f"the model call failed: "
+                                             f"{type(exc).__name__}: {exc}")
             self.run.input_tokens += response.input_tokens
             self.run.output_tokens += response.output_tokens
 
@@ -138,6 +147,8 @@ class DiscoveryAgent:
                 return terminal
 
             if not response.tool_calls:
+                self.journal.emit("llm.no_action", stop_reason=response.stop_reason,
+                                  text=(response.text or "")[:500])
                 return self._stop("aborted", "the model ended its turn without acting")
 
             self._messages.append({"role": "assistant", "content": response.content})
@@ -167,6 +178,25 @@ class DiscoveryAgent:
         for call in calls:
             self._step_index += 1
             reason = str(call.arguments.get("reason", ""))
+
+            # R-M4-2: every tool call the model makes is journalled here, before
+            # anything decides what to do with it. Emitting per-branch means the
+            # branch nobody thought about is the one that goes unrecorded, and an
+            # evidence pack that silently omits a decision is not evidence.
+            self.journal.emit(
+                "llm.decision", step=self._step_index, tool=call.name, reason=reason,
+                args={k: v for k, v in call.arguments.items() if k != "reason"},
+            )
+
+            if call.name not in TOOL_NAMES:
+                self._record(DiscoveryStep(
+                    index=self._step_index, tool=call.name, reason=reason, ok=False,
+                    error=f"unknown tool {call.name!r}", failure_class="INTERNAL",
+                    pruned=True, pruned_because="not a tool this agent offers"))
+                self.journal.emit("llm.unknown_tool", step=self._step_index, tool=call.name)
+                results.append({"type": "tool_result", "tool_use_id": call.id,
+                                "content": f"There is no tool called {call.name!r}."})
+                continue
 
             if call.name == "finish":
                 # Recorded for the transcript, pruned from the flow: "the goal is
@@ -274,7 +304,7 @@ class DiscoveryAgent:
             action_type = ActionType.SCROLL
         elif name == "wait_for_text":
             return await self._wait_for_text(str(args.get("text", "")), reason), ""
-        else:
+        else:  # pragma: no cover - unknown tools are rejected before dispatch
             return f"Unknown tool {name}.", ""
 
         risk = classify(action_type, node)
@@ -282,13 +312,19 @@ class DiscoveryAgent:
             type=action_type,
             target=self._bundle_for(node) if node is not None else None,
             value=value,
-            url=str(args.get("url")) if name == "navigate" else None,
-            key=str(args.get("key")) if name == "press_key" else None,
+            # `str(args.get(...))` turned a missing field into the literal
+            # string "None" -- a navigate to "None", a keypress of "None".
+            # Strict schemas should prevent it; relying on that is how a silent
+            # coercion survives.
+            url=(str(args["url"]) if args.get("url") is not None else None)
+            if name == "navigate" else None,
+            key=(str(args["key"]) if args.get("key") is not None else None)
+            if name == "press_key" else None,
             risk=risk,
             reason=reason,
         )
 
-        self.journal.emit("llm.decision", step=self._step_index, tool=name, reason=reason,
+        self.journal.emit("llm.target_resolved", step=self._step_index, tool=name,
                           target=node.describe() if node else action.url or "",
                           risk=risk.value)
 

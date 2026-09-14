@@ -363,3 +363,119 @@ async def test_the_system_prompt_is_marked_cacheable(walkthrough):
     # Tool order is part of the cached prefix; it must not vary per turn.
     orders = [[t["name"] for t in call["tools"]] for call in walkthrough.client.sent]
     assert all(o == orders[0] for o in orders)
+
+
+# --------------------------------------------------------------------------
+# R-M4-2: evidence completeness -- no model output is handled silently
+# --------------------------------------------------------------------------
+
+async def test_every_tool_call_is_journalled_before_it_is_dispatched(walkthrough):
+    """The principle, not the individual bug.
+
+    Journalling per-branch means the branch nobody thought about is the one that
+    goes unrecorded. One entry is emitted for every call before anything decides
+    what to do with it, so `llm.decision` count equals tool-call count exactly --
+    including finish, observe, and calls that turn out to be invalid.
+    """
+    run = await walkthrough.run_discovery()
+
+    decisions = walkthrough.journal.of("llm.decision")
+    assert len(decisions) == len(run.steps), (
+        f"{len(decisions)} journal entries for {len(run.steps)} tool calls")
+    assert all(e.data["tool"] for e in decisions)
+    assert all("reason" in e.data for e in decisions)
+    # finish is a decision too; it is the one that ends the run.
+    assert decisions[-1].data["tool"] == "finish"
+
+
+async def test_an_invalid_node_reference_is_recorded_not_silently_answered(
+    page, profile, live_server
+):
+    """A model inventing node ids left gaps in the step numbering and nothing
+    else -- which is how a weaker model hallucinating ids stayed invisible."""
+    await sign_in(page, live_server)
+    agent = build(page, profile, [
+        tool_turn(("click", {"node_id": "content:n999", "reason": "click a thing"})),
+        tool_turn(("give_up", {"reason": "done"})),
+    ])
+    run = await agent.run_discovery()
+
+    bad = [s for s in run.steps if s.failure_class == "LOCATOR_UNRESOLVED"]
+    assert bad, "the invalid call left no trace"
+    assert bad[0].pruned and "not on screen" in bad[0].pruned_because
+    assert [s.index for s in run.steps] == list(range(1, len(run.steps) + 1)), \
+        "step numbering must have no gaps"
+
+
+async def test_an_unknown_tool_is_recorded_and_answered(page, profile, live_server):
+    await sign_in(page, live_server)
+    agent = build(page, profile, [
+        tool_turn(("teleport", {"reason": "why not"})),
+        tool_turn(("give_up", {"reason": "done"})),
+    ])
+    run = await agent.run_discovery()
+
+    unknown = [s for s in run.steps if s.tool == "teleport"]
+    assert unknown and unknown[0].pruned
+    assert "llm.unknown_tool" in agent.journal.kinds()
+    assert len(agent.journal.of("llm.decision")) == len(run.steps)
+
+
+async def test_a_missing_required_field_is_not_coerced_into_a_string(
+    page, profile, live_server
+):
+    """`str(args.get("url"))` turned a missing field into the literal "None" --
+    a navigate to "None", a keypress of "None". Strict schemas should prevent
+    it; relying on that is how a silent coercion survives."""
+    await sign_in(page, live_server)
+    agent = build(page, profile, [
+        tool_turn(("navigate", {"reason": "go somewhere"})),   # no url
+        tool_turn(("give_up", {"reason": "done"})),
+    ])
+    run = await agent.run_discovery()
+
+    nav = [s for s in run.steps if s.tool == "navigate"][0]
+    assert not nav.ok
+    assert nav.url != "None", "a missing url became the string 'None'"
+    assert "requires a url" in nav.error
+
+
+async def test_a_turn_with_no_tool_call_keeps_what_the_model_said(
+    page, profile, live_server
+):
+    await sign_in(page, live_server)
+    agent = build(page, profile, [
+        ModelResponse(stop_reason="end_turn", text="I am not sure how to proceed here.")])
+    run = await agent.run_discovery()
+
+    assert run.status == "aborted"
+    said = agent.journal.of("llm.no_action")
+    assert said and "not sure how to proceed" in said[0].data["text"]
+
+
+async def test_a_transport_failure_does_not_vaporize_the_transcript(
+    page, profile, live_server
+):
+    """The steps taken before the failure are still evidence, and often the most
+    useful kind."""
+    await sign_in(page, live_server)
+
+    class Flaky:
+        def __init__(self):
+            self.calls = 0
+
+        def send(self, **kw):
+            self.calls += 1
+            if self.calls == 1:
+                return tool_turn(("observe", {"reason": "look first"}))
+            raise ConnectionError("connection reset by peer")
+
+    agent = DiscoveryAgent(
+        WebSurface(page), Flaky(), profile, goal=GOAL, tenant="demo-cu",
+        journal=MemoryJournal(), screenshots=False)
+    run = await agent.run_discovery()
+
+    assert run.status == "aborted"
+    assert "ConnectionError" in run.stop_reason
+    assert len(run.steps) == 1, "the step taken before the failure survived"
+    assert "llm.transport_error" in agent.journal.kinds()
