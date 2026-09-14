@@ -1,5 +1,12 @@
 """Draw the observation onto the screenshot, and mask what must not be seen.
 
+Three callers, one renderer: the discovery prompt, the evidence pack, and the
+operator console. They want the same picture for the same reason -- whoever is
+looking should see what a person would see, plus the numbering used to point at
+things -- and it lives under `observability` rather than under `discovery`
+because the console must be able to render a screen without importing anything
+that can reach a model.
+
 The model is shown the same screen a person would see, plus the numbering it
 uses to point at things. Two boxes on one image keep the semantic layer and the
 visual layer in agreement -- if node `content:n4` is drawn around the wrong

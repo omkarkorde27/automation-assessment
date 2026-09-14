@@ -24,7 +24,7 @@ SRC = Path(__file__).resolve().parent.parent / "src" / "cua"
 # excluded -- that is where a model belongs.
 REPLAY_REACHABLE = [
     "replay", "conditions", "locators", "perception", "surfaces",
-    "artifact", "profiles", "observability",
+    "artifact", "profiles", "observability", "session", "escalation", "policy",
 ]
 
 FORBIDDEN = {"anthropic", "openai"}
@@ -64,7 +64,12 @@ def test_the_guard_actually_covers_the_engine():
     """A test that passes because it scanned nothing is worse than no test."""
     scanned = {str(p.relative_to(SRC)) for p in _module_files()}
     for required in ("replay/engine.py", "replay/result.py", "conditions/dsl.py",
-                     "locators/resolve.py", "surfaces/web_playwright.py"):
+                     "locators/resolve.py", "surfaces/web_playwright.py",
+                     # M5: the engine imports these, and the console is the one
+                     # place a "let the model figure out this screen" helper
+                     # would look most reasonable.
+                     "session/control.py", "escalation/broker.py",
+                     "escalation/console.py", "policy/risk.py"):
         assert required in scanned, f"{required} was not scanned"
     assert len(scanned) >= 15
 

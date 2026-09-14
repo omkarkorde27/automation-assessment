@@ -1,5 +1,16 @@
-"""Session-level concerns: authentication now, the control lease in M5."""
+"""Session-level concerns: authentication, and who is allowed to act."""
 
 from .auth import Authenticator, CredentialResolver, SignInResult
+from .control import (
+    AUTOMATION,
+    ControlLease,
+    ControlState,
+    IllegalTransition,
+    NotControlHolder,
+    Transfer,
+)
 
-__all__ = ["Authenticator", "CredentialResolver", "SignInResult"]
+__all__ = [
+    "AUTOMATION", "Authenticator", "ControlLease", "ControlState", "CredentialResolver",
+    "IllegalTransition", "NotControlHolder", "SignInResult", "Transfer",
+]

@@ -1,7 +1,7 @@
 """CLI entry point.
 
-At M0 this serves the mockbank fixture and arms faults against it. The
-`discover`, `replay`, and `serve-console` commands land with their milestones.
+Serves the mockbank fixture, arms faults against it, runs discovery, and serves
+the operator console. `replay` lands with M7's demo path.
 """
 
 from __future__ import annotations
@@ -85,6 +85,37 @@ def dry_run_cmd(
     report = asyncio.run(run_control_checks(resolved))
     typer.echo(report.render())
     raise typer.Exit(0 if report.ok else 1)
+
+
+@app.command("serve-console")
+def serve_console(
+    host: str = typer.Option("127.0.0.1", help="Bind address."),
+    port: int = typer.Option(8801, help="Port for the operator console."),
+    evidence_root: str = typer.Option("evidence", help="Where interventions are filed."),
+) -> None:
+    """Serve the operator console over the evidence directory.
+
+    **Read-only.** Interventions filed by finished runs can be reviewed here,
+    but nothing can be taken over: takeover needs the live browser, and the
+    browser belongs to the process that opened it. A second process gets a
+    second browser, at which point "the human continues where the automation
+    stopped" has quietly become "the human starts over" -- which is the whole
+    thing the design refuses to do.
+
+    To drive a live session, the console is embedded in the run's own process.
+    `scripts/watch_takeover.py` does exactly that and is the demo path.
+    """
+    import uvicorn
+
+    from .escalation.console import create_console
+    from .escalation.requests import InterventionStore
+
+    store = InterventionStore(evidence_root)
+    open_now = len(store.list())
+    typer.echo(f"operator console -> http://{host}:{port}/")
+    typer.echo(f"evidence         {evidence_root}  ({open_now} intervention(s) on file)")
+    typer.echo("mode             read-only -- no live session is attached to this process\n")
+    uvicorn.run(create_console(store=store), host=host, port=port)
 
 
 @app.command("discover")
