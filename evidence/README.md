@@ -60,6 +60,22 @@ order and the recorded artifacts are untouched, and only the pass that was wrong
 was run again. `tests/test_redaction.py` now asserts the rules actually match
 something, which is the check that was missing.
 
+**A second rule bug is visible in these files and cannot be corrected.** The
+search form's `Last Name` label reads `<redacted>`, and the textbox beside it
+has `row_label: <redacted>` in consequence. That is a *label* being masked —
+metadata naming the field, not the surname anyone typed — and it happened
+because `within_row` matches a row by containment, so the anchor `Name` also
+selected `Last Name` and (on the confirmation screen) `Nickname`. The rules are
+fixed and `test_sensitivity_rules_never_mask_a_column_header_or_field_label`
+holds them there; the value a user types into that box is now masked, which is
+what should have been happening all along.
+
+These files are **not** re-redacted for it, unlike the `account_number` pass
+above, and the reason is the design working as intended: observations are stored
+*post*-`apply_sensitivity`, so the original string is not in the file to restore.
+Writing `Last Name` back in would be inferring evidence rather than recording it.
+The runs stand as captured, over-masked labels and all.
+
 The raw transcript is deliberately **not** persisted: it contains observations of
 regulated data. `discovery.json` carries the decisions, not the screens.
 

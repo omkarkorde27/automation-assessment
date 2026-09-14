@@ -264,6 +264,20 @@ sensitivity:
         scope: {anchor: {text: Name}, relation: within_row}
       classification: pii_name
       mask: [screenshot, text]
+    # The surname an operator TYPES into the search box. The label beside it
+    # reads "Last Name" and stays readable -- a field's name is metadata, and
+    # an agent has to be able to see that a surname field exists in order to
+    # leave it alone. What goes in it is a member's surname, and is not
+    # different, as data, from the Name cell on the record it finds.
+    #
+    # This was the other half of the label/value bug: the rules masked the
+    # label "Last Name" and left the value "Whitfield" beside it in the clear,
+    # which is exactly backwards.
+    - match:
+        role: textbox
+        scope: {anchor: {text: Last Name}, relation: within_row}
+      classification: pii_name
+      mask: [screenshot, text]
 
   # `account_number` is ON. It was the one detector left off, and with the node
   # rule above inert that meant nothing masked an account number anywhere. The

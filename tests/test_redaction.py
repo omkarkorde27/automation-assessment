@@ -28,7 +28,8 @@ from cua.artifact.schema import OutputSpec, ParamType, Redaction
 from cua.escalation import InterventionBroker, InterventionStore, LiveSession
 from cua.observability.journal import MemoryJournal
 from cua.policy.redaction import (
-    REDACTED, apply_sensitivity, redact_output, redaction_for, screenshot_allowed, scrub_text,
+    REDACTED, apply_sensitivity, classify, redact_output, redaction_for, screenshot_allowed,
+    scrub_text,
 )
 from cua.profiles import ProfileRepository
 from cua.replay import ReplayEngine, Success
@@ -520,3 +521,133 @@ async def test_masking_a_field_does_not_take_its_label_away(signed_in, profile):
     values = {m.name for r, m in zip(raw.nodes, masked.nodes)
               if r.role == "cell" and r.anchors.row_label in ("SSN", "Date of Birth", "Name")}
     assert values == {REDACTED}, f"but the values must not: {values}"
+
+
+# ==========================================================================
+# labels are not data (the label/value category error)
+# ==========================================================================
+
+#: Text that NAMES a field or a column. Metadata about where regulated data
+#: lives, never the data. Masking it takes the field's name away with its
+#: contents: an operator reading `<redacted> <redacted>` down a member record
+#: can no longer tell which row was the SSN, and an agent cannot see that a
+#: surname field exists in order to leave it alone.
+LABELS = {
+    "Member ID", "Name", "Last Name", "Nickname", "SSN", "Date of Birth",
+    "Branch", "Status", "Account Number", "Type", "Balance",
+    "Product Code", "Initial Deposit", "Opening Balance", "New Account Number",
+}
+
+#: The data those labels describe. If any of these survives, the rules are
+#: pointing at the wrong node.
+VALUES = {"Dana Whitfield", SSN, DOB}
+
+
+async def test_sensitivity_rules_never_mask_a_column_header_or_field_label(
+        signed_in, profile, live_server):
+    """A field's LABEL is metadata; the field's VALUE is the regulated thing.
+
+    Both halves are asserted, because each alone passes for the wrong reason: a
+    rule that masks nothing satisfies "no label is masked", and a rule that
+    masks the whole screen satisfies "every value is masked".
+
+    This is a regression test for a real category error. `_in_scope`'s
+    `within_row` falls back to CONTAINMENT on the row text, so the anchor
+    "Name" selected every row whose text contains "name" -- and this product
+    has two that are not names: the search form's `Last Name` label and the
+    confirmation screen's `Nickname`. The guard in `classify()` compared the
+    node's own name to the anchor for EXACT equality, so "last name" != "name"
+    and the label was masked while the surname typed into the box beside it was
+    left in the clear. Exactly backwards, on all three surfaces at once.
+    """
+    base = f"{live_server}/t/demo-cu"
+    surface = WebSurface(signed_in)
+
+    async def nodes_on(url: str, fill: tuple[str, str] | None = None):
+        await signed_in.goto(url, wait_until="networkidle")
+        if fill is not None:
+            await signed_in.fill(*fill)
+            await signed_in.wait_for_timeout(100)
+        return await surface.observe()
+
+    screens = {
+        "member record": await nodes_on(f"{base}/members/12345"),
+        "search form": await nodes_on(f"{base}/members"),
+        "search form, surname typed": await nodes_on(
+            f"{base}/members", ("input[name='last_name']", "Whitfield")),
+        "sub-account form": await nodes_on(f"{base}/members/12345/subaccount/new"),
+    }
+
+    for where, raw in screens.items():
+        for node in raw.nodes:
+            hit = classify(node, profile.profile)
+            if hit is None:
+                continue
+            assert node.name.strip() not in LABELS, (
+                f"on the {where}, the rule {hit[0]!r} masked {node.name!r}, which "
+                f"is the LABEL naming the field. A label describes where "
+                f"regulated data lives; it is not the data."
+            )
+            # A header is a label that happens to sit at the top of a column.
+            assert node.role != "columnheader", (
+                f"on the {where}, {hit[0]!r} masked the column header "
+                f"{node.name!r}. The cells UNDER it hold the data, not it."
+            )
+
+
+async def test_the_values_those_labels_describe_are_still_masked(
+        signed_in, profile, live_server):
+    """The other half. Above says we stopped masking labels; this says we did
+    not achieve that by masking nothing."""
+    base = f"{live_server}/t/demo-cu"
+    surface = WebSurface(signed_in)
+
+    await signed_in.goto(f"{base}/members/12345", wait_until="networkidle")
+    record = apply_sensitivity(await surface.observe(), profile.profile)
+    rendered = json.dumps(record.model_dump(), default=str)
+    for value in VALUES:
+        assert value not in rendered, f"{value!r} survived redaction on the member record"
+    # ...and the labels are all still legible in the same document.
+    for label in ("Name", "SSN", "Date of Birth"):
+        assert label in rendered, (
+            f"{label!r} is gone from the record. The point of not masking labels "
+            f"is that the reader can still tell which row was which."
+        )
+
+
+async def test_a_surname_typed_into_the_search_box_is_masked_even_though_its_label_is_not(
+        signed_in, profile, live_server):
+    """The inverse of the bug, and the reason it was worth fixing rather than
+    just loosening: the label was masked and the value beside it was not."""
+    base = f"{live_server}/t/demo-cu"
+    surface = WebSurface(signed_in)
+    await signed_in.goto(f"{base}/members", wait_until="networkidle")
+    await signed_in.fill("input[name='last_name']", "Whitfield")
+    await signed_in.wait_for_timeout(100)
+
+    redacted = apply_sensitivity(await surface.observe(), profile.profile)
+    box = next(n for n in redacted.nodes
+               if n.role == "textbox" and n.anchors.row_label == "Last Name")
+    assert box.sensitive and "Whitfield" not in (box.value or ""), (
+        "the surname an operator typed is a surname"
+    )
+    assert any(n.name == "Last Name" for n in redacted.nodes), (
+        "the label beside it is metadata and stays readable"
+    )
+
+
+def test_screenshot_masks_and_the_node_list_agree_about_what_is_regulated():
+    """The three surfaces -- console node table, observation JSON, screenshot
+    boxes -- must not disagree, and the reason they cannot is that all three go
+    through the single `classify()`. This asserts the wiring, so that a fourth
+    surface added later has to join it rather than grow its own copy."""
+    import inspect
+
+    from cua.policy import redaction
+
+    source = inspect.getsource(redaction.screenshot_masks)
+    assert "classify(" in source, (
+        "screenshot masking must derive its boxes from the same classification "
+        "the node list uses, or a label can be legible in one and painted over "
+        "in the other"
+    )

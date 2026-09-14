@@ -50,6 +50,7 @@ cannot recognise however that screen came about.
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any
 
@@ -113,6 +114,32 @@ def create_console(
         if broker is None:
             raise HTTPException(409, "this console is read-only: no run is attached to it")
         return broker
+
+    _live_cache: dict[str, tuple[float, Any, bytes | None]] = {}
+    _LIVE_TTL_S = 1.0
+
+    async def live_snapshot(intervention_id: str, session: LiveSession):
+        """One `snapshot()` per tick, shared by the node list and the picture.
+
+        `snapshot()` runs the extractor over every frame and takes a Playwright
+        screenshot, both against the session a human is watching. The page polls
+        `/screen` and `/screenshot.png` together, so the naive version did that
+        work twice a second -- and the repaints were visible as a flicker in the
+        headed window, on the one screen where an operator is trying to read
+        something. They are two endpoints because an <img> needs its own GET,
+        not because they are two different observations.
+
+        Deliberately not in the broker: `mark_taken` and the release audit
+        fingerprint the screen at moments that must not be served a cached
+        answer. This TTL is scoped to the viewfinder.
+        """
+        now = time.monotonic()
+        hit = _live_cache.get(intervention_id)
+        if hit is not None and now - hit[0] < _LIVE_TTL_S:
+            return hit[1], hit[2]
+        observation, png = await session.snapshot()
+        _live_cache[intervention_id] = (now, observation, png)
+        return observation, png
 
     def require_live(intervention_id: str) -> tuple[Any, LiveSession]:
         found = resolved_store.get(intervention_id)
@@ -223,7 +250,7 @@ def create_console(
         `Action` -- and therefore promotable into an artifact.
         """
         _, session = require_live(intervention_id)
-        observation, _ = await session.snapshot()
+        observation, _ = await live_snapshot(intervention_id, session)
         return JSONResponse({
             "url": observation.url,
             "title": observation.title,
@@ -246,7 +273,7 @@ def create_console(
     async def screenshot(intervention_id: str) -> Response:
         """Polled about once a second by the page. Masked before it is encoded."""
         _, session = require_live(intervention_id)
-        _, png = await session.snapshot()
+        _, png = await live_snapshot(intervention_id, session)
         if png is None:
             raise HTTPException(503, "this surface cannot produce a screenshot")
         return Response(content=png, media_type="image/png",
@@ -291,7 +318,11 @@ def create_console(
                 value=body.value, key=body.key, url=body.url, reason=body.reason,
             )
         except UnknownNode as exc:
+            _live_cache.pop(intervention_id, None)
             raise HTTPException(400, str(exc)) from exc
+        # The screen just moved. Serving the cached pre-action view for up to a
+        # second would show the operator the state they just left.
+        _live_cache.pop(intervention_id, None)
 
         return JSONResponse({
             "ok": result.ok,
@@ -347,9 +378,24 @@ _PAGE = """<!doctype html>
 <style>
  :root { color-scheme: light dark; }
  body { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0;
-        display: grid; grid-template-columns: 340px 1fr; height: 100vh; }
- #list { border-right: 1px solid #8884; overflow: auto; padding: 8px; }
- #main { overflow: auto; padding: 12px; }
+        display: grid; grid-template-columns: 340px 1fr; height: 100vh;
+        overflow: hidden; }
+ /* A grid item defaults to min-height:auto, so it grows to fit its content
+    instead of scrolling: with a long node table #main overflowed a 100vh body
+    that has nothing to scroll, and the rows below the fold could not be
+    reached at all. Whether you saw it depended on how tall the table was
+    relative to the window, which is why it reproduced in one browser and not
+    another. `min-height: 0` is what lets `overflow: auto` actually apply. */
+ #list, #main { min-height: 0; }
+ #list { border-right: 1px solid #8884; overflow-y: auto; padding: 8px; }
+ #main { overflow-y: auto; overflow-x: hidden; padding: 12px; }
+ /* The picture is worth keeping in view while you hunt for a row, so the rows
+    scroll inside their own box rather than pushing it off the top. */
+ #nodes { max-height: 42vh; overflow: auto; border: 1px solid #8884;
+          border-radius: 4px; }
+ #nodes table { margin: 0; }
+ #nodes thead th, #nodes .urlbar { position: sticky; top: 0; background: Canvas; }
+ #shot { display: block; }
  .row { padding: 6px 8px; border: 1px solid #8884; border-radius: 4px; margin-bottom: 6px;
         cursor: pointer; }
  .row.on { border-color: #d24; }
@@ -368,6 +414,7 @@ _PAGE = """<!doctype html>
 <div id="main" class="dim">Pick an intervention.</div>
 <script>
 let current = null, operator = "operator", shotTimer = null;
+let lastSig = null, polling = false;
 
 async function j(url, opts) {
   const r = await fetch(url, opts);
@@ -389,7 +436,7 @@ async function refreshList() {
 }
 
 async function open_(id) {
-  current = id; clearInterval(shotTimer);
+  current = id; clearInterval(shotTimer); lastSig = null;
   const r = await j("/api/interventions/" + id);
   const drivable = r.live && r.takeover;
   document.getElementById("main").className = "";
@@ -440,21 +487,41 @@ async function open_(id) {
           the evidence above is what it looked like when it stopped.</p>`}
   `;
   await refreshList();
-  if (drivable) { poll(); shotTimer = setInterval(poll, 1000); }
+  if (drivable) { poll(); shotTimer = setInterval(poll, 1500); }
 }
 
 async function poll() {
   const img = document.getElementById("shot");
   if (!img) { clearInterval(shotTimer); return; }
-  img.src = `/api/interventions/${current}/screenshot.png?t=` + Date.now();
-  const s = await j(`/api/interventions/${current}/screen`);
-  document.getElementById("nodes").innerHTML = `<p class="dim">${esc(s.url)}</p><table>` +
-    s.nodes.map(n => `<tr class="pick" onclick="pick('${n.node_id}','${esc(n.role)}')">
-      <td class="dim">${esc(n.frame)}</td><td>${esc(n.node_id)}</td>
-      <td>${esc(n.describe)}</td>
-      <td>${n.sensitive ? "&lt;redacted&gt;" : esc(n.value ?? "")}</td>
-      <td>${n.enabled ? "" : "<span class='tag'>disabled</span>"}</td>
-    </tr>`).join("") + "</table>";
+  if (polling) return;   // a slow snapshot must not queue more of itself
+  polling = true;
+  try {
+    // Decode into a detached image and swap only once it is ready. Assigning
+    // .src directly blanks the element while the next PNG loads, which at a
+    // one-second cadence is a visible flicker.
+    const next = new Image();
+    next.onload = () => { img.src = next.src; };
+    next.src = `/api/interventions/${current}/screenshot.png?t=` + Date.now();
+
+    const s = await j(`/api/interventions/${current}/screen`);
+    // Rewriting innerHTML every tick threw away the operator's scroll position
+    // in the node table -- which reads exactly like "the table will not
+    // scroll". Only redraw when the screen has actually changed.
+    const sig = s.url + "|" + s.nodes.map(n =>
+      n.node_id + n.describe + (n.sensitive ? "*" : n.value ?? "") + n.enabled).join("~");
+    if (sig === lastSig) return;
+    lastSig = sig;
+    document.getElementById("nodes").innerHTML =
+      `<p class="dim urlbar">${esc(s.url)}</p><table>` +
+      s.nodes.map(n => `<tr class="pick" onclick="pick('${n.node_id}','${esc(n.role)}')">
+        <td class="dim">${esc(n.frame)}</td><td>${esc(n.node_id)}</td>
+        <td>${esc(n.describe)}</td>
+        <td>${n.sensitive ? "&lt;redacted&gt;" : esc(n.value ?? "")}</td>
+        <td>${n.enabled ? "" : "<span class='tag'>disabled</span>"}</td>
+      </tr>`).join("") + "</table>";
+  } finally {
+    polling = false;
+  }
 }
 
 async function pick(nodeId, role) {

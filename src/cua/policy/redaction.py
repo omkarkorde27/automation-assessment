@@ -86,15 +86,39 @@ def classify(node: UiNode, profile: AppProfile) -> tuple[str, tuple[str, ...]] |
     its own label context, because an agent still has to see that an SSN field
     exists in order to leave it alone.
 
-    So a node whose own name IS the anchor is the label, not the data.
+    **A label is never the data.** The first version of that guard skipped a
+    node whose own name was EXACTLY the anchor, which is true of `SSN` beside
+    an SSN and false of everything else. `_in_scope`'s `within_row` falls back
+    to `_row_text_matches`, which is CONTAINMENT -- so the anchor "Name"
+    selected every row whose text contains "name", and this product has two:
+    the search form's `Last Name` and the confirmation screen's `Nickname`.
+    Neither is a person's name, both were masked, and the exact-equality guard
+    could not see it because "last name" != "name".
+
+    So the test is positive rather than negative: in a label/value row the data
+    is the cell whose ROW LABEL is the anchor. `Dana Whitfield` has row label
+    `Name`; the `Name` cell beside it has row label `Dana Whitfield`; the
+    `Last Name` label has no row label at all. Identifying the value directly
+    cannot be fooled by a label that merely contains the anchor word, and it is
+    the same relation the rule author was describing when they wrote
+    `{anchor: Name, relation: within_row}`.
+
+    An anchor written as a `pattern` is left alone -- that is explicit
+    authoring, and the author may well mean to catch a family of labels.
     """
     for rule in profile.sensitivity.node_rules:
         if not node_matches(node, rule.match):
             continue
         scope = rule.match.scope
         if scope is not None and scope.anchor.text:
+            # Backstop, kept for relations other than `within_row`: a node whose
+            # own name IS the anchor is naming the field, not holding it.
             if normalize_name(node.name) == normalize_name(scope.anchor.text):
                 continue
+            if scope.relation == "within_row" and not scope.anchor.pattern:
+                if normalize_name(node.anchors.row_label) != normalize_name(
+                        scope.anchor.text):
+                    continue
         return rule.classification, rule.mask
     return None
 
