@@ -304,19 +304,37 @@ async def main() -> int:
 
         rule("result")
         print(f"  {BOLD}{type(result).__name__}{RESET} — {result.describe()}")
-        print(f"  intervention   {result.intervention_id or '(none filed)'}")
+        opened = journal.of("intervention.opened")
+        filed = result.intervention_id or (opened[0]["intervention"] if opened else "")
+        resolved = " (filed, resolved, run continued)" if opened and not result.intervention_id else ""
+        print(f"  intervention   {filed or '(none filed)'}{resolved}")
         print(f"  lease          {lease.describe()}")
         print(f"\n  {BOLD}how control changed hands{RESET}")
         for transfer in lease.history:
             print(f"    • {transfer.describe()}")
 
         humans = journal.of("human.action")
-        print(f"\n  {BOLD}what the operator did ({len(humans)} action(s)){RESET}")
+        took = journal.of("intervention.taken")
+        offchannel = journal.of("handback.unsanctioned_change")
+        print(f"\n  {BOLD}what the operator did ({len(humans)} forwarded action(s)){RESET}")
         for action in humans:
             print(f"    • {action['action']:<8} {action.get('node_id') or action.get('url', '')}"
                   f"  {DIM}{action['reason']}{RESET}")
-        if not humans:
+        if not humans and not took:
             print(f"    {DIM}(nothing — nobody took control){RESET}")
+        elif not humans:
+            # Took the lease, forwarded nothing through act(). Either they looked
+            # and released, or they drove the window directly -- and the whole
+            # point of R-M6-4 is that those two are distinguishable.
+            who = took[0].get("operator", "an operator")
+            print(f"    {DIM}nothing was forwarded through the console"
+                  f" — {who} held the lease{RESET}")
+        for entry in offchannel:
+            print(f"    {BOLD}! off-channel change{RESET} — the screen moved from "
+                  f"{entry['screen_before']} to {entry['screen_after']} with "
+                  f"{entry['forwarded_actions']} forwarded action(s).")
+            print(f"      {DIM}The window was driven directly, so THAT it changed is"
+                  f" recorded and WHAT changed is not. This is R-M6-4.{RESET}")
 
         handback = journal.of("handback.verified") + journal.of("handback.resync_failed")
         if handback:
