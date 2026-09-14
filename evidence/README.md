@@ -3,7 +3,10 @@
 What actually happened, written as the runs proceeded rather than assembled
 afterwards — so a run that crashes still leaves its evidence.
 
-Everything here has been through redaction. Observations are stored
+Every run directory here has been through redaction — with one documented
+exception, `agent_round_trip.txt`, which quotes the fixture member's name twice
+on purpose to show the caller/model split it is demonstrating (the file says so
+where it does it, and the value is fabricated). Observations are stored
 post-`apply_sensitivity`; screenshots are masked before the bytes reach disk, and
 a **persisted** screenshot is masked more aggressively than the live console view
 (an operator holding the lease needs to read an account number off the record; a
@@ -69,7 +72,7 @@ Regenerate any of these with the commands in the root `README.md`.
 | `run_82617c55b4bb` | `success` | the ordinary path, demo-cu |
 | `run_68b670b3c48a` | `business_outcome` `MEMBER_NOT_FOUND` | **not a failure.** A declared, detected, typed answer the caller asked for |
 | `run_482df3966f5c` | `failure` `SURFACE_ERROR` | the app's 500 page mid-flow, matched against a profile-declared hard failure. Carries the `failure/` pack |
-| `run_d2c1d434f225` | `escalated` `PERMISSION_REQUIRED` | a state no capability anticipated → a person is needed. The intervention request carries expected, observed, and a redacted screenshot |
+| `run_d2c1d434f225` | `escalated` `PERMISSION_REQUIRED` | a state no capability anticipated → a person is needed. `stuck.detected` names the pattern (`permission_wall`), and the result carries `reason_class`, `at_step` and a `human_message` written for the person who picks it up — plus a `failure/` pack: masked screenshot, observation, Playwright trace. No intervention was *filed*: `cua replay` has no console attached, so `intervention_id` is null. Filing and parking is the takeover demo |
 | `run_4dc66cf83e8c` | `success` | **silently recovered.** The session dropped at `s3`; the engine re-authenticated, rewound to the last checkpoint still true of the screen, and finished. seven step traces for a four-step flow — `s1 s2 s3 s1 s2 s3 s4` — is the rewind, visible |
 | `run_35f71d735c9a` | `success` | **cross-tenant.** The same artifact, recorded against demo-cu, replayed on valley-cu through two locator overrides |
 | `run_92e276942bdc` | `escalated` `IRREVERSIBLE_NOT_AUTHORIZED` | the write flow refused: the artifact is a draft and nobody passed explicit intent |

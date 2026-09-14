@@ -99,7 +99,7 @@ must not invalidate the artifact.
 
 **Replay imports no model client, and that is a test, not a claim.**
 `test_replay_has_no_llm.py` walks the import graph of every package reachable from
-`replay/` — 38 modules across 11 packages — and also spawns a subprocess to catch
+`replay/` — 41 modules across 12 packages — and also spawns a subprocess to catch
 a transitive import arriving through a package `__init__`. It caught one: an
 annotation helper living in `discovery/` had to move to `observability/` when the
 operator console started rendering screens.
@@ -406,6 +406,20 @@ wrong" — which for "that member does not exist" is a lie. Each payload also ca
 a `guidance` line naming the variant, because a model handed a bare JSON blob will
 guess. `Success` renders from `evidence_outputs` rather than `outputs`: a tool result
 **is** a prompt on the caller's next turn, so the redaction rule applies to it.
+
+*And that has a cost worth naming, because it is a real limit and not a rough
+edge.* A capability whose purpose is to **read a name back** cannot be answered
+through the agent-facing interface as it currently stands: `member_name` reaches
+the model as `<redacted>` while the engine read "Dana Whitfield" off the screen.
+`Success.outputs` still carries the value whole, so an **in-process** caller — the
+`cua replay` path, or anything holding the `ReplayResult` object — gets the real
+name; only the rendered tool result is masked. The split is deliberate, because a
+tool result is a prompt and a prompt is not a return value. But it means the
+redaction policy, not the capability contract, is currently deciding which
+questions a model may ask. The right fix is per-field egress policy — a value
+declared safe to return *to a model* as distinct from safe to write *to disk* —
+rather than the single `OutputSpec.redact` flag serving both. That is a schema
+change, and it is the first thing I would build next in this area.
 
 **The round trip, with nothing staged** — `uv run python scripts/watch_agent_call.py`
 shells out to `cua catalog --json`, sends the result as `tools` on a real Messages
