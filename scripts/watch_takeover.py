@@ -52,6 +52,7 @@ import socket
 import sys
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -68,6 +69,7 @@ from cua.policy.allowlist import load_policy  # noqa: E402
 from cua.profiles import ProfileRepository  # noqa: E402
 from cua.replay import ReplayEngine  # noqa: E402
 from cua.replay.engine import CredentialResolver  # noqa: E402
+from cua.observability.evidence import EvidenceWriter  # noqa: E402
 from cua.replay.result import to_dict  # noqa: E402
 from cua.session.control import ControlLease  # noqa: E402
 from cua.surfaces.web_playwright import WebSurface  # noqa: E402
@@ -104,12 +106,19 @@ def rule(title: str) -> None:
 class LiveJournal:
     """A `Journal` that narrates to the terminal as the run happens."""
 
-    def __init__(self, *, verbose: bool = False) -> None:
+    def __init__(self, *, verbose: bool = False, sink: Any = None) -> None:
         self.events: list[tuple[str, dict]] = []
         self.verbose = verbose
+        self.sink = sink
+        """Where the narration also goes, durably. Without one this demo is the
+        only part of the system that leaves no journal behind -- which for the
+        milestone about preserving evidence across a handoff is the wrong thing
+        to be missing."""
 
     def emit(self, kind: str, **data: Any) -> None:
         self.events.append((kind, data))
+        if self.sink is not None:
+            self.sink.emit(kind, **data)
         if kind in QUIET and not self.verbose:
             return
         detail = " ".join(
@@ -155,8 +164,8 @@ class ArmingJournal(LiveJournal):
     """
 
     def __init__(self, *, at_step: str, base_url: str, tenant: str, fault: str,
-                 verbose: bool):
-        super().__init__(verbose=verbose)
+                 verbose: bool, sink: Any = None):
+        super().__init__(verbose=verbose, sink=sink)
         self._at, self._base, self._tenant, self._fault = at_step, base_url, tenant, fault
         self._armed = False
 
@@ -242,8 +251,10 @@ async def main() -> int:
     evidence = REPO / "evidence"
     store = InterventionStore(evidence)
 
+    writer = EvidenceWriter(evidence, f"run_{uuid.uuid4().hex[:12]}")
     journal = ArmingJournal(at_step=args.arm_at_step, base_url=base_url,
-                            tenant=args.tenant, fault=args.fault, verbose=args.verbose)
+                            tenant=args.tenant, fault=args.fault, verbose=args.verbose,
+                            sink=writer.journal)
     broker = InterventionBroker(store, journal=journal, wait_timeout_s=args.wait,
                                 evidence_root=evidence)
 
@@ -285,6 +296,7 @@ async def main() -> int:
         engine = ReplayEngine(
             surface, artifact, resolved,
             journal=journal, tenant=args.tenant, broker=broker, lease=lease,
+            evidence=writer,
             goal="read a member's current savings balance",
             policy=allowlist,
             credentials=CredentialResolver(
