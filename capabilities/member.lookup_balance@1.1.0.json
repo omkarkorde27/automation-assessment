@@ -1,0 +1,592 @@
+{
+  "schema_version": "1.0",
+  "capability": {
+    "id": "member.lookup_balance",
+    "version": "1.1.0",
+    "title": "Look up a member's savings balance",
+    "description": "Look up a credit-union member by their member id and read the current balance of their savings account. Read-only: it searches for the member, opens their record, and reports what the account screen shows.",
+    "tags": [],
+    "owner": "",
+    "approval_state": "draft",
+    "risk_tier": "read_only",
+    "created_at": "2026-09-13T23:57:32.531060Z"
+  },
+  "binding": {
+    "product": {
+      "vendor": "meridian",
+      "product": "core",
+      "version_range": ">=4.2"
+    },
+    "app_profile_ref": "meridian-core@4.2",
+    "recorded_against": {
+      "tenant": "demo-cu",
+      "surface_fingerprint": {},
+      "surface_kind": "legacy_web"
+    }
+  },
+  "inputs": {
+    "member_id": {
+      "type": "string",
+      "description": "Supplied to: Enter the member id whose savings balance is being requested",
+      "required": true,
+      "default": null,
+      "pattern": "^\\d{5}$",
+      "enum": null,
+      "minimum": null,
+      "maximum": null,
+      "example": null,
+      "sensitive": false,
+      "volatile": false
+    }
+  },
+  "outputs": {
+    "savings_balance": {
+      "type": "money",
+      "description": "Capture the balance from the Accounts row whose Type is Savings, which is the value the request asked for",
+      "optional": false,
+      "redact": "none"
+    },
+    "member_name": {
+      "type": "string",
+      "description": "Capture the member name so a caller can confirm the balance belongs to the expected member",
+      "optional": false,
+      "redact": "none"
+    }
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "intent": "Open the Member Search screen, the standard entry point for looking up a member",
+      "action": {
+        "type": "click",
+        "target": {
+          "target_id": "member_search_link",
+          "frame_path": [
+            {
+              "name": "nav",
+              "url_pattern": null,
+              "index": null
+            }
+          ],
+          "candidates": [
+            {
+              "strategy": "role_name_exact",
+              "role": "link",
+              "name": "Member Search",
+              "scope": null
+            },
+            {
+              "strategy": "role_name_pattern",
+              "role": "link",
+              "name_pattern": "(?i)^Member\\ Search$",
+              "scope": null
+            }
+          ],
+          "match_policy": "unique_required",
+          "allow_unstable": false,
+          "notes": "accessible name 'Member Search' is unique among links in this frame. a case-insensitive pattern absorbs whitespace and casing drift.",
+          "recorded": {
+            "role": "link",
+            "name": "Member Search",
+            "value_shape": null,
+            "states": {
+              "visible": true,
+              "enabled": true,
+              "readonly": false,
+              "required": false,
+              "checked": false,
+              "focused": false
+            },
+            "bbox": [
+              0.0,
+              0.058888888888888886,
+              1.0,
+              0.03111111111111111
+            ],
+            "anchors": {
+              "section_label": "Servicing",
+              "preceding_text": "Home"
+            }
+          },
+          "stability_score": 1.0
+        },
+        "value_from": null,
+        "url_template": null,
+        "key": null,
+        "wait_for": null,
+        "scroll_by": null
+      },
+      "preconditions": null,
+      "checkpoint": {
+        "any": [
+          {
+            "url": {
+              "matches": "/members$"
+            },
+            "frame": [
+              {
+                "name": "content",
+                "url_pattern": null,
+                "index": null
+              }
+            ]
+          },
+          {
+            "element": {
+              "role": "button",
+              "name": "Search",
+              "name_matches": null,
+              "value": null,
+              "value_matches": null,
+              "scope": null,
+              "enabled": null,
+              "col_header": null
+            },
+            "exists": true,
+            "text_matches": null,
+            "frame": null,
+            "min_count": 1
+          }
+        ]
+      },
+      "completion_witness": null,
+      "risk": "submit_reversible",
+      "requires_confirmation": false,
+      "requires_human": false,
+      "timeout_ms": 8000,
+      "retries": 2,
+      "optional": false
+    },
+    {
+      "id": "s2",
+      "intent": "Enter the member id whose savings balance is being requested",
+      "action": {
+        "type": "fill",
+        "target": {
+          "target_id": "member_id_input",
+          "frame_path": [
+            {
+              "name": "content",
+              "url_pattern": null,
+              "index": null
+            }
+          ],
+          "candidates": [
+            {
+              "strategy": "anchor_relative",
+              "anchor": {
+                "text": "Member ID",
+                "pattern": null,
+                "role": null
+              },
+              "relation": "same_row",
+              "target_role": "textbox",
+              "occurrence": 0,
+              "scope": null
+            }
+          ],
+          "match_policy": "unique_required",
+          "allow_unstable": false,
+          "notes": "in a table row labelled 'Member ID' -- this is the candidate that survives the per-render id churn, since it keys on text a person reads.",
+          "recorded": {
+            "role": "textbox",
+            "name": "",
+            "value_shape": null,
+            "states": {
+              "visible": true,
+              "enabled": true,
+              "readonly": false,
+              "required": false,
+              "checked": false,
+              "focused": false
+            },
+            "bbox": [
+              0.1085428145087236,
+              0.12111111111111111,
+              0.14049586776859505,
+              0.023333333333333334
+            ],
+            "anchors": {
+              "row_label": "<redacted>",
+              "row_text": "<redacted>",
+              "section_label": "Member Search"
+            }
+          },
+          "stability_score": 0.72
+        },
+        "value_from": {
+          "param": "member_id",
+          "literal": null,
+          "credential": null
+        },
+        "url_template": null,
+        "key": null,
+        "wait_for": null,
+        "scroll_by": null
+      },
+      "preconditions": null,
+      "checkpoint": null,
+      "completion_witness": null,
+      "risk": "input",
+      "requires_confirmation": false,
+      "requires_human": false,
+      "timeout_ms": 8000,
+      "retries": 2,
+      "optional": false
+    },
+    {
+      "id": "s3",
+      "intent": "Run the lookup to retrieve the member record and their savings balance",
+      "action": {
+        "type": "click",
+        "target": {
+          "target_id": "search_button",
+          "frame_path": [
+            {
+              "name": "content",
+              "url_pattern": null,
+              "index": null
+            }
+          ],
+          "candidates": [
+            {
+              "strategy": "role_name_exact",
+              "role": "button",
+              "name": "Search",
+              "scope": null
+            },
+            {
+              "strategy": "role_name_pattern",
+              "role": "button",
+              "name_pattern": "(?i)^Search$",
+              "scope": null
+            },
+            {
+              "strategy": "anchor_relative",
+              "anchor": {
+                "text": "Member ID",
+                "pattern": null,
+                "role": null
+              },
+              "relation": "same_row",
+              "target_role": "button",
+              "occurrence": 0,
+              "scope": null
+            }
+          ],
+          "match_policy": "unique_required",
+          "allow_unstable": false,
+          "notes": "accessible name 'Search' is unique among buttons in this frame. a case-insensitive pattern absorbs whitespace and casing drift. in a table row labelled 'Member ID' -- this is the candidate that survives the per-render id churn, since it keys on text a person reads.",
+          "recorded": {
+            "role": "button",
+            "name": "Search",
+            "value_shape": null,
+            "states": {
+              "visible": true,
+              "enabled": true,
+              "readonly": false,
+              "required": false,
+              "checked": false,
+              "focused": false
+            },
+            "bbox": [
+              0.26556760789715333,
+              0.11888888888888889,
+              0.060175619834710745,
+              0.027777777777777776
+            ],
+            "anchors": {
+              "row_label": "<redacted>",
+              "row_text": "<redacted>",
+              "section_label": "Member Search"
+            }
+          },
+          "stability_score": 1.0
+        },
+        "value_from": null,
+        "url_template": null,
+        "key": null,
+        "wait_for": null,
+        "scroll_by": null
+      },
+      "preconditions": null,
+      "checkpoint": {
+        "url": {
+          "matches": "/members/search$"
+        },
+        "frame": [
+          {
+            "name": "content",
+            "url_pattern": null,
+            "index": null
+          }
+        ]
+      },
+      "completion_witness": null,
+      "risk": "submit_reversible",
+      "requires_confirmation": false,
+      "requires_human": false,
+      "timeout_ms": 8000,
+      "retries": 2,
+      "optional": false
+    },
+    {
+      "id": "s4",
+      "intent": "Open the matched member's record to view their account balances",
+      "action": {
+        "type": "click",
+        "target": {
+          "target_id": "search_results_link",
+          "frame_path": [
+            {
+              "name": "content",
+              "url_pattern": null,
+              "index": null
+            }
+          ],
+          "candidates": [
+            {
+              "strategy": "role_name_pattern",
+              "role": "link",
+              "name_pattern": "^\\d{5}$",
+              "scope": null
+            }
+          ],
+          "match_policy": "unique_required",
+          "allow_unstable": false,
+          "notes": "this control is named after the parameter value itself, so the recorded candidate matches the value's SHAPE (^\\d{5}$) rather than this run's value -- otherwise the capability would only ever work for one customer. no anchor candidate recorded: this row is search-result data, so its neighbouring cells hold one customer's details rather than a stable label.",
+          "recorded": {
+            "role": "link",
+            "name": "^\\d{5}$",
+            "value_shape": null,
+            "states": {
+              "visible": true,
+              "enabled": true,
+              "readonly": false,
+              "required": false,
+              "checked": false,
+              "focused": false
+            },
+            "bbox": [
+              0.02938475665748393,
+              0.14444444444444443,
+              0.035037878787878785,
+              0.016666666666666666
+            ],
+            "anchors": {
+              "col_header": "<redacted>",
+              "section_label": "Search Results"
+            }
+          },
+          "stability_score": 0.85
+        },
+        "value_from": null,
+        "url_template": null,
+        "key": null,
+        "wait_for": null,
+        "scroll_by": null
+      },
+      "preconditions": null,
+      "checkpoint": {
+        "url": {
+          "matches": "/members/\\d+$"
+        },
+        "frame": [
+          {
+            "name": "content",
+            "url_pattern": null,
+            "index": null
+          }
+        ]
+      },
+      "completion_witness": null,
+      "risk": "navigate",
+      "requires_confirmation": false,
+      "requires_human": false,
+      "timeout_ms": 8000,
+      "retries": 2,
+      "optional": false
+    }
+  ],
+  "extractions": [
+    {
+      "output": "savings_balance",
+      "target": {
+        "target_id": "savings_balance_cell",
+        "frame_path": [
+          {
+            "name": "content",
+            "url_pattern": null,
+            "index": null
+          }
+        ],
+        "candidates": [
+          {
+            "strategy": "anchor_relative",
+            "anchor": {
+              "text": "Balance",
+              "pattern": null,
+              "role": null
+            },
+            "relation": "same_column",
+            "target_role": "cell",
+            "occurrence": 0,
+            "scope": {
+              "anchor": {
+                "text": null,
+                "pattern": "(?i)Savings",
+                "role": null
+              },
+              "relation": "within_row"
+            }
+          }
+        ],
+        "match_policy": "unique_required",
+        "allow_unstable": false,
+        "notes": "read two-dimensionally -- the 'Balance' column of the row identified by its label. Recording this cell's own text would produce a locator that finds the value only while it stays that value.",
+        "recorded": {
+          "role": "cell",
+          "name": "^.{7,11}$",
+          "value_shape": null,
+          "states": {
+            "visible": true,
+            "enabled": true,
+            "readonly": false,
+            "required": false,
+            "checked": false,
+            "focused": false
+          },
+          "bbox": [
+            0.5866477272727273,
+            0.375,
+            0.22256657483930212,
+            0.02666666666666667
+          ],
+          "anchors": {
+            "col_header": "Balance",
+            "section_label": "Accounts",
+            "preceding_text": "<redacted>"
+          }
+        },
+        "stability_score": 0.72
+      },
+      "source": "name",
+      "parse": {
+        "type": "money",
+        "locale": "en_US",
+        "pattern": null,
+        "group": 0,
+        "date_format": null
+      },
+      "after_step": null
+    },
+    {
+      "output": "member_name",
+      "target": {
+        "target_id": "member_name_cell",
+        "frame_path": [
+          {
+            "name": "content",
+            "url_pattern": null,
+            "index": null
+          }
+        ],
+        "candidates": [
+          {
+            "strategy": "anchor_relative",
+            "anchor": {
+              "text": "Name",
+              "pattern": null,
+              "role": null
+            },
+            "relation": "same_row",
+            "target_role": "cell",
+            "occurrence": 0,
+            "scope": null
+          }
+        ],
+        "match_policy": "unique_required",
+        "allow_unstable": false,
+        "notes": "in a table row labelled 'Name' -- this is the candidate that survives the per-render id churn, since it keys on text a person reads.",
+        "recorded": {
+          "role": "cell",
+          "name": "^.{12,16}$",
+          "value_shape": null,
+          "states": {
+            "visible": true,
+            "enabled": true,
+            "readonly": false,
+            "required": false,
+            "checked": false,
+            "focused": false
+          },
+          "bbox": [
+            0.11860078053259872,
+            0.14222222222222222,
+            0.09585915977961433,
+            0.025555555555555557
+          ],
+          "anchors": {
+            "section_label": "Member Detail",
+            "preceding_text": "<redacted>"
+          }
+        },
+        "stability_score": 0.72
+      },
+      "source": "name",
+      "parse": null,
+      "after_step": null
+    }
+  ],
+  "outcomes": [
+    {
+      "code": "MEMBER_NOT_FOUND",
+      "detect": {
+        "element": {
+          "role": "alert",
+          "name": null,
+          "name_matches": "(?i)No\\ records\\ found\\ matching\\ your\\ search\\ criteria\\.",
+          "value": null,
+          "value_matches": null,
+          "scope": null,
+          "enabled": null,
+          "col_header": null
+        },
+        "exists": true,
+        "text_matches": null,
+        "frame": null,
+        "min_count": 1
+      },
+      "description": "The searched member id matches no record. The app shows the Search Results page with the alert \"No records found matching your search criteria.\" and only a \"Return to Member Search\" link \u2014 no member detail is available. This is a valid answer, not an error.",
+      "after_step": null,
+      "message_from": null,
+      "terminal": true
+    }
+  ],
+  "recoveries": [],
+  "success": {
+    "checkpoint": {
+      "url": {
+        "matches": "/members/\\d+$"
+      },
+      "frame": [
+        {
+          "name": "content",
+          "url_pattern": null,
+          "index": null
+        }
+      ]
+    },
+    "description": "The Member Detail screen for member {member_id} (<redacted>) is displayed with the Accounts table showing the <redacted> account <redacted> at <redacted>, which answers the balance request; the earlier 99999 search produced the \"No records found matching your search criteria.\" alert, now declared as the MEMBER_NOT_FOUND outcome."
+  },
+  "provenance": {
+    "recorded_from_run": "disc_cccbcae3f06c",
+    "model": "claude-opus-5",
+    "discovery_goal": "Search for member 99999, which does not exist, so you can see and declare how this application reports a member it cannot find. Then search for member {member_id} and read their current savings balance.",
+    "recorded_at": "2026-09-13T23:57:32.531117Z",
+    "steps_observed": 11,
+    "steps_pruned": 7,
+    "verified_by_replay": true
+  },
+  "content_hash": "sha256:0dbd24d098e13612f9c06275efc8c614e15077b075dbbd26fdc84c697eb6ab7c"
+}

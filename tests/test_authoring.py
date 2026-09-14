@@ -14,6 +14,7 @@ actually observed. Those two limits are what these tests are really about.
 
 from __future__ import annotations
 
+from cua.artifact.schema import Provenance
 from cua.artifact.authoring import (
     AuthoringReview, CheckpointConcern, ProposedOutcome, build_prompt, review_artifact,
 )
@@ -134,9 +135,16 @@ def test_an_outcome_for_a_screen_that_was_never_seen_is_rejected():
 
 
 def test_the_reviewer_cannot_touch_the_executable_flow():
-    """It may only add outcomes. The steps, locators and checkpoints stay exactly
-    what was observed -- a model editing the flow after the fact would undo the
-    entire point of recording one."""
+    """It may add outcomes and author the caller-facing prose. The steps,
+    locators and checkpoints stay exactly what was observed -- a model editing
+    the flow after the fact would undo the entire point of recording one.
+
+    The prose used to be in this list. It was here because nothing consumed
+    `AuthoringReview.title`/`.description`, so "unchanged" was the only
+    observable behaviour and the test wrote it down as if it were the rule.
+    R-M7-2 made the fields live: the reviewer is now the thing that names a
+    capability for its callers. What must not move is the executable flow.
+    """
     artifact, run = flow_with_notice(NOT_FOUND)
     reviewer = FakeReviewer(AuthoringReview(
         outcomes=[ProposedOutcome(code="MEMBER_NOT_FOUND", description="d",
@@ -150,8 +158,41 @@ def test_the_reviewer_cannot_touch_the_executable_flow():
     assert reviewed.steps == artifact.steps
     assert reviewed.extractions == artifact.extractions
     assert reviewed.success == artifact.success
-    assert reviewed.capability.title == artifact.capability.title
+    assert reviewed.binding == artifact.binding
+    assert reviewed.inputs == artifact.inputs
+    assert reviewed.outputs == artifact.outputs
+
+
+def test_the_reviewer_authors_the_caller_facing_prose():
+    """R-M7-2. These fields were declared, filled every run, and thrown away."""
+    artifact, run = flow_with_notice(NOT_FOUND)
+    reviewer = FakeReviewer(AuthoringReview(
+        title="Look up a savings balance",
+        description="Look up a member by id and read their savings balance.",
+    ))
+
+    reviewed, report = review_artifact(artifact, run, reviewer)
+
+    assert reviewed.capability.title == "Look up a savings balance"
+    assert reviewed.capability.description.startswith("Look up a member by id")
+    assert "description" in report.applied and "title" in report.applied
+
+
+def test_the_reviewer_may_not_hand_back_the_discovery_goal():
+    """The most likely thing a model asked to describe a flow will do, and the
+    exact defect R-M7-2 exists to remove."""
+    artifact, run = flow_with_notice(NOT_FOUND)
+    goal = ("Search for member 99999, which does not exist, so you can see how "
+            "this application reports a member it cannot find.")
+    artifact = artifact.model_copy(update={
+        "provenance": (artifact.provenance or Provenance()).model_copy(
+            update={"discovery_goal": goal})})
+
+    reviewed, report = review_artifact(artifact, run, FakeReviewer(
+        AuthoringReview(description=goal)))
+
     assert reviewed.capability.description == artifact.capability.description
+    assert any("restates the discovery goal" in r for r in report.rejected)
 
 
 def test_concerns_are_reported_without_changing_anything():

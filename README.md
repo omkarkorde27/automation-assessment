@@ -27,7 +27,7 @@ cp .env.example .env             # fixture credentials (fake) + optional API key
 else in this README runs offline.**
 
 ```bash
-uv run pytest                    # 431 tests, no API key required
+uv run pytest                    # 448 tests, no API key required
 ```
 
 ---
@@ -56,6 +56,19 @@ as drafts, so the default catalog is empty and says so. A tool definition is an
 *offer*: offering a draft means a model calls something nobody reviewed, and for a
 read-only capability nothing would stop it. `--include-drafts` shows them, marked,
 for review; a draft never reaches the `--json` payload. `cua approve` is the gate.
+
+**One version per capability** (R-M7-3) — the highest that is approved. `cua replay
+id@version` still addresses any version directly.
+
+```bash
+uv run cua describe member.lookup_balance --description "..."   # mints a new version
+```
+
+The description is what a production model reads when it decides whether to call a
+capability, so the recorder refuses to write it (R-M7-2): it knows what was asked of
+the *explorer*, not what the capability is *for*. `cua approve` refuses a capability
+described by its own discovery goal. This is not hypothetical — see §7 of
+`REPORT.md` for the run where the model followed one into a wasted replay.
 
 ### 1b. …and a real model calling one
 

@@ -413,7 +413,8 @@ API call, dispatches the model's `tool_use` to the M3 engine, and returns the re
 as a `tool_result`. Two Sonnet calls, ~$0.01; Sonnet rather than Opus because this
 demonstrates tool selection, not agentic discovery. On a real run the model asked
 *"What's the savings balance for member 12345?"*, chose `member_lookup_balance`, and
-got `{"savings_balance": "4210.75"}` back through the engine. With `--bad-argument`
+got `{"savings_balance": "4210.75"}` back through the engine in a single call. With
+`--bad-argument`
 it declines before calling — the `^\d{5}$` is in the schema it was handed — and the
 forged call it would have had to make comes back as `PARAM_INVALID` in 34 ms with no
 browser navigation. Defence in depth, and the second layer does not depend on the
@@ -441,19 +442,49 @@ choosing the capability does not put a model inside it.
 
 **Known limitations, stated rather than hidden.**
 
-- **The capability description is the discovery goal, verbatim** — and the agent
-  interface proved it costs something. One of my goals contained an exploratory
-  instruction ("search for a member that does not exist, so you can see how it
-  reports that"), so that capability's tool description describes the *recording*
-  rather than the capability. With the round trip built, this stopped being a
-  cosmetic complaint: on one run the model read the description and spent a replay
-  looking up member 99999 before answering the question actually asked, and on
-  another it named the text as an embedded instruction it declined to obey. A
-  discovery goal is written for the model that will explore; a tool description is
-  read by the agent that will invoke. The recorder conflates the two audiences.
-  The fix is either a re-record with a clean goal or a corrected version of the
-  artifact — both are reviewer decisions, so this is reported rather than patched
-  behind the content hash.
+- **The capability description was the discovery goal, verbatim — found by the
+  agent interface, and fixed.** This is the one defect the stretch goal earned its
+  place by catching, so it is worth stating in full. One of my discovery goals
+  contained an exploratory instruction ("search for member 99999, which does not
+  exist, so you can see how it reports that"), and the recorder used the goal as
+  the capability's description. That string is what a production model reads when
+  it decides whether and how to call the capability. On **every** round-trip run
+  the model followed it: it called the tool twice, spending an entire replay
+  looking up member 99999 before answering the question actually asked. On one run
+  it named the text explicitly as an embedded instruction in tool metadata that it
+  declined to obey — the correct instinct, and still a wasted turn.
+
+  A discovery goal is written to steer the model that will **explore**. A
+  description is read by the agent that will **invoke**. The goal was already
+  preserved correctly in `provenance.discovery_goal`, so the description was a
+  second, lossy copy of it serving the wrong audience. Fixed at four points, none
+  of them a warning in a doc:
+
+  1. the recorder writes `description=""` — it knows what was asked of the
+     explorer, not what the capability is *for*;
+  2. the authoring reviewer's `title` and `description` are now **applied**. They
+     were declared on `AuthoringReview`, filled by the reviewer every run, and
+     discarded — a declared-but-unconsumed field my own M4 review missed;
+  3. `cua describe` authors the prose by **minting a new version**. The
+     description is part of the contract a caller depends on, so changing it
+     changes the content hash; editing the file by hand would look exactly like
+     the tampering the hash exists to reveal. The flow is untouched, and the new
+     version starts as a draft, because a new contract is a new review;
+  4. `cua approve` **refuses** a capability with no description or one that
+     restates its goal. Together with R-M7-1 — only approved capabilities are
+     offered — a goal-as-description can no longer reach a calling agent at all.
+
+  The guard behind (2) and (4) targets **explorer-directed phrasing** rather than
+  similarity to the goal. My first cut compared word sets at 0.75 and rejected a
+  perfectly good hand-written description of `member.open_subaccount`, whose goal
+  happened to be well phrased: it was measuring subject matter and being read as
+  authorship. A good goal and a good description of the same operation *should*
+  share their content words.
+
+  Both capabilities ship at **1.1.0**. The recording — steps, locators,
+  checkpoints, outcomes, provenance — is exactly what the Opus runs produced;
+  `1.0.0` is still on disk. **Before:** two tool calls and a wasted replay.
+  **After:** one call, `{"member_id": "12345"}`, straight to the answer.
 - **`member.open_subaccount` ships `verified_by_replay: false`**, on purpose:
   verifying an irreversible capability means performing it a second time, the
   application correctly refuses the duplicate, and the artifact then looks broken

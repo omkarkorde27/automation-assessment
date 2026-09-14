@@ -152,12 +152,46 @@ def build_catalog(artifacts: Iterable[CapabilityArtifact], *,
     Takes artifacts rather than a store so a caller can catalogue anything it
     already holds -- a test's factories, one artifact under review -- without
     the module needing to know where capabilities are kept.
+
+    R-M7-2 -- ONE VERSION PER CAPABILITY, the highest that is invocable.
+    `ArtifactStore.list()` returns every version on disk, and a tool name is
+    derived from the capability id alone, so two versions of one capability
+    produce two tool definitions with the same `name`. The Messages API rejects
+    that outright, and `resolve()` would otherwise return whichever happened to
+    sort first -- silently running an old flow. An agent is offered
+    `member_lookup_balance`, not a version picker: choosing between 1.0.0 and
+    1.1.0 is a decision about which contract is current, which is a human's to
+    make by approving one. `cua replay id@version` still addresses any version
+    directly, because a person debugging needs exactly that.
+
+    "Highest INVOCABLE" rather than "highest": a newly minted version starts as
+    a draft, and until somebody reviews it the approved predecessor is still
+    what a caller should get. Falling back to the highest overall when none is
+    approved keeps `--include-drafts` showing the version under review.
     """
+    best: dict[str, CapabilityArtifact] = {}
+    for artifact in artifacts:
+        cid = artifact.capability.id
+        current = best.get(cid)
+        if current is None or _precedence(artifact) > _precedence(current):
+            best[cid] = artifact
+
     entries = tuple(
         CatalogEntry(artifact=a,
                      invocable=a.capability.approval_state is ApprovalState.APPROVED)
-        for a in sorted(artifacts, key=lambda a: a.capability.id))
+        for a in sorted(best.values(), key=lambda a: a.capability.id))
     return ToolCatalog(entries=entries, include_drafts=include_drafts)
+
+
+def _precedence(artifact: CapabilityArtifact) -> tuple:
+    """Approved beats unapproved; among equals, the higher semver wins."""
+    version = artifact.capability.version
+    try:
+        parts = tuple(int(p) for p in version.split("."))
+    except ValueError:
+        parts = (0, 0, 0)
+    approved = artifact.capability.approval_state is ApprovalState.APPROVED
+    return (approved, parts)
 
 
 # ---------------------------------------------------------------------------
