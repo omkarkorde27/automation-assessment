@@ -156,7 +156,12 @@ def catalog_cmd(
     if not catalog.listing():
         # Not "nothing recorded". The distinction is the whole of R-M7-1: these
         # capabilities exist and are deliberately not being offered.
-        drafts = len(all_artifacts)
+        #
+        # Counted over CAPABILITIES, not files. `store.list()` returns every
+        # version on disk, so after one `cua describe` the file count is twice
+        # the capability count -- and this sentence is the first thing a reader
+        # of the README meets.
+        drafts = len(build_catalog(all_artifacts, include_drafts=True).listing())
         typer.echo(
             f"0 of {drafts} recorded capabilit{'y' if drafts == 1 else 'ies'} are "
             f"approved, so none is offered to a calling agent.\n"
