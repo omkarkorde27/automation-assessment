@@ -66,6 +66,7 @@ flowchart LR
         G["Goal in plain English<br/><i>'Look up member 12345's<br/>savings balance'</i>"] --> D["🤖 Discovery<br/>LLM explores the live app"]
         D --> R["Recorder<br/>freezes the run"]
         R --> A[("📄 Capability artifact<br/>typed · versioned · hashed")]
+        A -.-> VR["Verify by replay<br/><i>no LLM · skipped for<br/>irreversible writes</i>"]
         A --> V{"👤 Human review<br/><code>cua approve</code>"}
     end
 
@@ -74,7 +75,7 @@ flowchart LR
         C --> AG["AI agent picks a tool<br/>and supplies arguments"]
         AG --> E["⚙️ Replay engine<br/><b>no LLM in the loop</b>"]
         E --> RES["Typed result<br/>success · business_outcome ·<br/>escalated · failure"]
-        E -.stuck.-> H["👤 Operator takes over<br/>the same live session"]
+        E -.stuck.-> H["👤 Operator takes over<br/>the same live session<br/><i>needs a broker + lease:<br/>scripts/watch_takeover.py</i>"]
         H -.verified handback.-> E
     end
 ```
@@ -174,10 +175,14 @@ stateDiagram-v2
     Discovered --> Draft: recorder derives locators,<br/>checkpoints, typed I/O
     Draft --> Draft: cua describe<br/>(mints a new version)
     Draft --> Approved: cua approve<br/>(human review)
-    Approved --> Catalogued: cua catalog --json<br/>(offered to agents)
+    Approved --> Catalogued: cua catalog --json<br/>(highest approved version<br/>offered to agents)
     Catalogued --> Replayed: agent tool_use →<br/>deterministic replay
     Replayed --> Catalogued: next request
-    Approved --> Draft: surface drift detected<br/>(demoted until re-reviewed)
+    note left of Approved
+        Drift demotion back to Draft
+        is designed, not wired yet.
+        Nothing calls fingerprint.compare().
+    end note
 ```
 
 Only **approved** capabilities appear in the catalogue. A tool definition is an
@@ -187,15 +192,32 @@ automation runs against a bank's systems.
 ### What an artifact contains
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph ART["member.lookup_balance@1.1.0"]
-        META["<b>capability</b><br/>id · version · title · description<br/>risk_tier: read_only · approval_state"]
-        BIND["<b>binding</b><br/>vendor product meridian/core ≥4.2<br/><i>not a tenant</i>"]
-        IO["<b>inputs / outputs</b><br/>member_id: ^\d{5}$<br/>savings_balance: money"]
-        STEPS["<b>steps[]</b><br/>action + LocatorBundle<br/>+ checkpoint per step"]
-        OUT["<b>outcomes[]</b><br/>MEMBER_NOT_FOUND …<br/>declared business answers"]
-        REC["<b>recoveries[]</b><br/>interstitials, transient loads"]
-        HASH["<b>content_hash</b><br/>tamper-evident seal"]
+        direction LR
+        subgraph WHAT["What a caller sees"]
+            direction TB
+            META["<b>capability</b><br/>id · version · title · description<br/>risk_tier: read_only · approval_state"]
+            BIND["<b>binding</b><br/>vendor product meridian/core ≥4.2<br/>app_profile_ref meridian-core@4.2<br/><i>not a tenant · declared,<br/>not yet checked at replay</i>"]
+            IO["<b>inputs / outputs</b><br/>member_id: ^\d{5}$<br/>savings_balance: money · member_name"]
+            META ~~~ BIND ~~~ IO
+        end
+        subgraph HOW["How it runs"]
+            direction TB
+            STEPS["<b>steps[]</b><br/>action + LocatorBundle<br/>preconditions · checkpoint · risk<br/>completion_witness (for writes)"]
+            EXT["<b>extractions[]</b><br/>where each output is read"]
+            OUT["<b>outcomes[]</b><br/>MEMBER_NOT_FOUND<br/>declared business answers"]
+            REC["<b>recoveries[]</b><br/>capability-specific only · empty here<br/><i>app-wide pop-ups live in<br/>the product profile</i>"]
+            SUCC["<b>success</b><br/>final checkpoint"]
+            STEPS ~~~ EXT ~~~ OUT ~~~ REC ~~~ SUCC
+        end
+        subgraph TRUST["Trust"]
+            direction TB
+            PROV["<b>provenance</b><br/>discovery run · model · goal"]
+            HASH["<b>content_hash</b><br/>tamper-evident seal<br/><i>excludes approval_state,<br/>created_at, provenance</i>"]
+            PROV ~~~ HASH
+        end
+        WHAT ~~~ HOW ~~~ TRUST
     end
 ```
 
@@ -224,15 +246,22 @@ the `tool_result` a model reads.
 
 ```mermaid
 flowchart LR
-    ACT["act()"] --> R1{"Known obstruction?<br/><b>recoveries</b>"}
-    R1 -->|yes| FIX["dismiss / retry<br/>then continue"]
+    ACT["act()"] --> R0{"Logged out?<br/><b>session expiry</b>"}
+    R0 -->|yes| RA["re-authenticate, resume<br/>from deepest checkpoint<br/>still true"]
+    R0 -->|no| R1{"Known obstruction?<br/><b>recoveries</b>"}
+    R1 -->|yes| FIX["dismiss / wait"]
+    FIX -->|look again| R0
     R1 -->|no| R2{"Declared answer?<br/><b>business outcomes</b>"}
     R2 -->|yes| BO["business_outcome"]
-    R2 -->|no| R3{"Known bad screen?<br/><b>hard failures</b>"}
-    R3 -->|yes| FL["failure / escalate"]
-    R3 -->|no| R4{"Screen as expected?<br/><b>checkpoint</b>"}
+    R2 -->|no| R3{"App's own error page?<br/><b>hard failures</b>"}
+    R3 -->|yes| FL["failure<br/>SURFACE_ERROR"]
+    R3 -->|no| R3b{"Known stuck screen?<br/><b>stuck patterns</b>"}
+    R3b -->|yes| ESC["escalated<br/>intervention filed"]
+    R3b -->|no| R4{"Screen as expected?<br/><b>checkpoint</b>"}
     R4 -->|yes| NEXT["next step"]
-    R4 -->|no| FL
+    R4 -->|"no, retries left"| W["wait, then<br/>look again"]
+    W --> R0
+    R4 -->|"no, retries spent"| CF["failure<br/>CHECKPOINT_FAILED<br/>intervention filed"]
 ```
 
 The order matters. A marketing pop-up is not a failed checkpoint, and "already
@@ -245,23 +274,25 @@ sequenceDiagram
     autonumber
     participant E as Replay engine
     participant B as Live browser session
+    participant K as Broker + control lease
     participant C as Operator console
     participant O as Operator
 
-    E->>B: step s3
+    E->>B: step sN
     B-->>E: permission wall (stuck pattern)
-    E->>C: file intervention, park run (session stays open)
+    E->>K: file intervention, park run (session stays open)
     O->>C: Take control
-    C->>E: lease → operator
+    C->>K: take, lease moves to the operator
     O->>C: pick node / type / click
     C->>B: act() — journaled, lease-checked, risk-derived
     O->>C: Release & resume
-    C->>E: handback request
-    E->>B: re-verify screen (stuck patterns first, then checkpoint)
+    C->>K: release (screen fingerprint compared with take)
+    K->>E: wake the parked run
+    E->>B: re-verify screen (stuck patterns first, then precondition or last checkpoint)
     alt screen is where the flow expects
         E->>E: reclaim lease, continue
     else it is not
-        E-->>C: PRECONDITION_FAILED (loud, names the operator)
+        E->>E: run ends as failure PRECONDITION_FAILED, naming the operator
     end
 ```
 
@@ -273,16 +304,18 @@ act on the session. The lease has five states: `AUTOMATION_OWNED`,
 
 ```mermaid
 flowchart LR
-    P["Product profile<br/><code>meridian-core-4.2.yaml</code><br/>session expiry, login recipe,<br/>error banners, sensitive regions"]
-    T1["Tenant overlay<br/><code>demo-cu.yaml</code>"]
-    T2["Tenant overlay<br/><code>valley-cu.yaml</code><br/>base_url, label & locator overrides"]
-    A[("Artifact<br/>bound to the product")]
-    P --> M1["merge"] --> E1["Effective artifact<br/>for Demo CU"]
+    P["Product profile<br/><code>meridian-core-4.2.yaml</code><br/>login recipe, session expiry,<br/>recoveries, error pages, redaction"]
+    T1["Tenant overlay<br/><code>demo-cu.yaml</code><br/>base_url only"]
+    T2["Tenant overlay<br/><code>valley-cu.yaml</code><br/>base_url, locator overrides,<br/>param defaults, recoveries<br/><i>label overrides: read when recording</i>"]
+    A[("Artifact<br/>bound to the product<br/>never modified")]
+    P --> M1["resolve<br/>max 2 levels"] --> RP1["Demo CU profile"]
     T1 --> M1
-    A --> M1
-    P --> M2["merge"] --> E2["Effective artifact<br/>for Valley CU"]
+    P --> M2["resolve<br/>max 2 levels"] --> RP2["Valley CU profile"]
     T2 --> M2
-    A --> M2
+    RP1 --> S1["specialize()<br/>at load time"] --> E1["Effective artifact<br/>for Demo CU"]
+    A --> S1
+    RP2 --> S2["specialize()<br/>swaps whole locator bundles"] --> E2["Effective artifact<br/>for Valley CU"]
+    A --> S2
 ```
 
 Overlays go at most two levels deep (product, then tenant). Each resolution is
@@ -307,8 +340,8 @@ flowchart TB
 
     subgraph CONTRACT["Contract"]
         ART["artifact/<br/>schema · store · content hash"]
-        CAT["catalog/<br/>artifact → tool definition<br/>tool call → replay"]
-        PROF["profiles/<br/>product + tenant merge · drift"]
+        CAT["catalog/<br/>artifact → tool definition<br/>tool name → artifact"]
+        PROF["profiles/<br/>product + tenant merge<br/><i>drift check: designed, not wired</i>"]
     end
 
     subgraph RUN["Run — no model"]
@@ -333,17 +366,21 @@ flowchart TB
     ESC["escalation/<br/>interventions · broker · console"]
     OBS["observability/<br/>journal · evidence pack"]
 
-    AGENT --> CAT
-    CLI --> CAT
-    CLI --> DISC
-    CAT --> REP
+    AGENT -->|tool_use| CAT
+    CLI -->|cua catalog| CAT
+    CLI -->|cua discover| DISC
+    CLI -->|cua replay| REP
+    CAT -->|resolved artifact| REP
     DISC --> RECD --> ART
+    DISC -.verify by replay.-> REP
     ART --> REP
     PROF --> REP
+    PROF --> DISC
     REP --> COND
-    REP --> LOC
+    REP -->|extraction| LOC
     REP --> SURF
     DISC --> SURF
+    SURF -->|resolve target| LOC
     OPS --> ESC --> SURF
     REP -.stuck.-> ESC
     SURF --- POL
